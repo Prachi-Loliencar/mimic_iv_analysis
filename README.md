@@ -41,6 +41,8 @@ flowchart LR
 
 **Mart (`models/marts/`):** a wide-format analysis-ready cohort mart, one row per stay, joining demographics, admission attributes, outcomes, and first-24h (lab and vital) feature summaries.
 
+
+![dbt Lineage Graph](docs/lineage_graph.jpg)
 ---
 
 ## Cohort definition

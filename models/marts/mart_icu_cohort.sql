@@ -11,7 +11,7 @@
 {% set vital_concepts = [
     'heart_rate', 'art_bp_sys', 'art_bp_dia', 'art_bp_mean', 'nibp_sys', 
     'nibp_dia', 'nibp_mean', 'resp_rate', 'spo2', 'temp_c', 'gcs_eye',
-        'gcs_verbal', 'gcs_motor'
+    'gcs_verbal', 'gcs_motor'
 ] %}
 
 
@@ -37,7 +37,6 @@ age_computed as (
         f.last_careunit,
         -- patient attributes needed downstream
         p.gender,
-        p.anchor_year,
         p.dod,
         -- newly computed here
         date_diff(date(f.intime), date(p.anchor_year, 1, 1), year)
@@ -48,72 +47,85 @@ age_computed as (
 ),
 
 cohort_spine as (
-select
-    -- carried from age_computed
-    ac.subject_id,
-    ac.hadm_id,
-    ac.stay_id,
-    ac.intime,
-    ac.first_careunit,
-    ac.last_careunit,
-    ac.gender,
-    ac.anchor_year,
-    ac.dod,
-    ac.age_at_intime,
-    -- newly joined in from admissions
-    a.dischtime,
-    a.admission_type,
-    a.admission_location,
-    a.discharge_location,
-    a.marital_status,
-    a.race,
-    a.insurance,
-    a.hospital_expire_flag
-from age_computed as ac
-inner join
-    admissions as a
-    on ac.hadm_id = a.hadm_id and ac.subject_id = a.subject_id
-where ac.age_at_intime >= 18
+    select
+        -- carried from age_computed
+        ac.subject_id,
+        ac.hadm_id,
+        ac.stay_id,
+        ac.intime,
+        ac.first_careunit,
+        ac.last_careunit,
+        ac.gender,
+        ac.dod,
+        ac.age_at_intime,
+        -- newly joined in from admissions
+        a.dischtime,
+        a.admission_type,
+        a.admission_location,
+        a.discharge_location,
+        a.marital_status,
+        a.race,
+        a.insurance,
+        a.hospital_expire_flag
+    from age_computed as ac
+    inner join
+        admissions as a
+        on ac.hadm_id = a.hadm_id and ac.subject_id = a.subject_id
+    where ac.age_at_intime >= 18
+        -- Exclude stays whose recorded dod predates ICU intime: these are
+        -- MIMIC-IV date de-identification artifacts (dod shifted inconsistently
+        -- with admission dates) and would otherwise poison the horizon-based
+        -- mortality flags. See _mart_models.yml dod >= intime integrity test.
+        and (ac.dod is null or ac.dod >= date(ac.intime))
 ),
 
 outcomes_cte as (
-select
--- identifiers/foreign keys
-subject_id,
-hadm_id,
-stay_id,
--- demographics
-gender,
-age_at_intime,
-anchor_year,
-marital_status,
-race,
-insurance,
--- hospital stay information
-intime,
-dischtime,
-admission_type,
-admission_location,
-discharge_location,
-first_careunit,
-last_careunit,
--- outcome information
-dod,
-hospital_expire_flag = 1 as died_in_hospital,
-date_diff(dod, date(intime), day) <= 30 as died_within_30d,
-date_diff(dod, date(intime), day) <= 365 as died_within_1y
-from cohort_spine
+    select
+        -- identifiers/foreign keys
+        subject_id,
+        hadm_id,
+        stay_id,
+        -- demographics
+        gender,
+        age_at_intime,
+        marital_status,
+        race,
+        insurance,
+        -- hospital stay information
+        intime,
+        dischtime,
+        admission_type,
+        admission_location,
+        discharge_location,
+        first_careunit,
+        last_careunit,
+        -- outcome information
+        dod,
+        hospital_expire_flag = 1 as died_in_hospital,
+        -- NULL (unobserved) when dod is missing or predates intime; the
+        -- latter is excluded upstream in cohort_spine, but the guard keeps
+        -- the flags correct if that filter ever changes. A within-horizon
+        -- death is only asserted when dod >= intime.
+        case
+            when dod >= date(intime)
+                then date_diff(dod, date(intime), day) <= 30
+        end as died_within_30d,
+        case
+            when dod >= date(intime)
+                then date_diff(dod, date(intime), day) <= 365
+        end as died_within_1y
+    from cohort_spine
 ),
 
 vitals_pivoted as (
 select
-stay_id
+    stay_id
 {% for concept in vital_concepts %}
     {% for stat in stats %}
         , max(
             case when concept = '{{ concept }}' then valuenum_{{ stat }} end
         )
-            as {{ concept }}_{{ stat }},
+            as {{ concept }}_{{ stat }}
     {% endfor %}
     , max(case when concept = '{{ concept }}' then n_measurements end)
         as {{ concept }}_n_measurements
@@ -124,13 +136,13 @@ group by stay_id
 
 labs_pivoted as (
 select
-stay_id
+    stay_id
 {% for concept in lab_concepts %}
     {% for stat in stats %}
-        max(
+        , max(
             case when concept = '{{ concept }}' then valuenum_{{ stat }} end
         )
-            as {{ concept }}_{{ stat }},
+            as {{ concept }}_{{ stat }}
     {% endfor %}
     , max(case when concept = '{{ concept }}' then n_measurements end)
         as {{ concept }}_n_measurements
@@ -140,10 +152,10 @@ group by stay_id
 ),
 
 final_merge as (
-select *
-from outcomes_cte
-left join vitals_pivoted on outcomes_cte.stay_id = vitals_pivoted.stay_id
-left join labs_pivoted using (stay_id)
+    select *
+    from outcomes_cte
+    left join vitals_pivoted using (stay_id)
+    left join labs_pivoted using (stay_id)
 )
 
 select * from final_merge

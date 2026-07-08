@@ -9,7 +9,8 @@ models:
       and stg_hosp__admissions and pivoting int_vitals_first_24h and
       int_labs_first_24h from long to wide format via conditional aggregation.
       Filters: adults only (age_at_intime >= 18), LOS >= 24h enforced upstream
-      in int_first_icu_stay.
+      in int_first_icu_stay, and stays whose recorded dod predates ICU intime
+      (MIMIC-IV date de-identification artifacts) are excluded.
 
       Feature columns follow the naming pattern {concept}_{stat} for the
       13 vital concepts and 28 lab concepts, where stat is one of
@@ -125,9 +126,6 @@ models:
           - accepted_values:
               arguments:
                 values: ['M', 'F']
-
-      - name: anchor_year
-        description: "MIMIC-IV anchor_year; component of age_at_intime computation."
 
       - name: race
         description: "Self-reported race/ethnicity as captured at admission. Passthrough from stg_hosp__admissions."
