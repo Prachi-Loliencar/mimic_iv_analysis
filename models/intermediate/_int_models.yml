@@ -1,0 +1,158 @@
+version: 2
+
+models:
+
+  - name: int_first_icu_stay
+    description: >
+      Cohort spine for this project. Filters stg_icu__icustays to stays with
+      los >= 1 (i.e. ≥ 24 hours, since los is in fractional days), then selects the
+      earliest qualifying stay per subject_id using row_number() over
+      (partition by subject_id order by intime asc). Excludes 14 stays with null
+      outtime/los from the source (open or incomplete stays); this is a
+      feature-engineering constraint, not a clinical exclusion.
+      One row per subject_id.
+    columns:
+      - name: stay_id
+        description: "Stay identifier (primary key). Unique to each stay."
+        data_tests:
+          - unique
+          - not_null
+      - name: subject_id
+        description: "Patient identifier. Unique in this model (one row per subject)."
+        data_tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_hosp__patients')
+                field: subject_id
+      - name: hadm_id
+        description: "Hospital admission identifier. Foreign key to stg_hosp__admissions."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_hosp__admissions')
+                field: hadm_id
+      - name: first_careunit
+        description: "First ICU care unit the patient was admitted to for this stay (e.g. MICU, SICU, CCU, CVICU, TSICU, NICU)."
+      - name: last_careunit
+        description: "Last ICU care unit the patient was in before leaving the ICU."
+      - name: intime
+        description: "Timestamp of patient's transfer to the ICU."
+        data_tests:
+          - not_null
+      - name: outtime
+        description: "Timestamp of patient's transfer out of the ICU. Non-null in this model — null-outtime stays are excluded upstream."
+        data_tests:
+          - not_null
+      - name: los
+        description: "Length of stay for the given ICU stay in fractional days. All values >= 1 by construction."
+        data_tests:
+          - not_null
+
+  - name: int_labs_first_24h
+    description: >
+      Aggregates lab measurements over the first 24 hours of each cohort ICU
+      stay, one row per (stay_id, concept). Statistical summaries include count,
+      mean, standard deviation, and min/Q1/median/Q3/max via approx_quantiles.
+      Joins int_first_icu_stay to stg_hosp__labevents on hadm_id, filtering
+      lab charttime to [intime, intime + 24h) and excluding non-numeric results
+      (valuenum is not null) as part of the join predicate.
+      Rows only exist where a stay had at least one non-null measurement for
+      that itemid; stays with no draws for a given lab are simply absent
+      rather than represented as null aggregate rows.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - stay_id
+              - concept
+    columns:
+      - name: stay_id
+        description: "ICU stay identifier. Foreign key to int_first_icu_stay."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('int_first_icu_stay')
+                field: stay_id
+      - name: concept
+        description: "Lab concept description, derived by mapping stg_hosp__labevents.itemid via the CASE statement in int_labs_first_24h; itemid selection was validated against stg_hosp__d_labitems during exploration (see docs/exploration/concept_reference.md). Restricted to the 28-itemid canonical panel via the staging filter."
+        data_tests:
+          - not_null
+      - name: n_measurements
+        description: "Number of non-null valuenum measurements for this stay/itemid over the first 24h. Always >= 1 by construction."
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 1"
+      - name: valuenum_mean
+        description: "Mean of valuenum measurements for this stay/lab over the first 24h."
+      - name: valuenum_std
+        description: "Sample standard deviation of valuenum measurements for this stay/lab over the first 24h. Null when n_measurements = 1."
+      - name: valuenum_min
+        description: "Min of valuenum measurements for this stay/lab over the first 24h."
+      - name: valuenum_q1
+        description: "25th percentile of valuenum measurements for this stay/lab over the first 24h."
+      - name: valuenum_median
+        description: "Median of valuenum measurements for this stay/lab over the first 24h."
+      - name: valuenum_q3
+        description: "75th percentile of valuenum measurements for this stay/lab over the first 24h."
+      - name: valuenum_max
+        description: "Max of valuenum measurements for this stay/lab over the first 24h."
+
+  - name: int_vitals_first_24h
+    description: >
+      Aggregates vital measurements over the first 24 hours of each cohort ICU
+      stay, one row per (stay_id, concept) where concept refers to the vital marker.
+      Statistical summaries include count, mean, standard deviation, and min/Q1/median/Q3/max 
+      via approx_quantiles. Joins int_first_icu_stay to stg_icu__chartevents on
+      stay_id, filtering chart charttime to [intime, intime + 24h) and excluding non-numeric
+      results (valuenum is not null) as part of the join predicate.
+      Rows only exist where a stay had at least one non-null measurement for
+      that itemid and stays with no recordings for a given vital are simply
+      absent rather than represented as null aggregate rows. Temperature °C
+      (223762) and °F (223761) are combined into a single concept, converting into °C for
+      consistency. Two references to the Arterial BP mean (220052, 225312) are combined
+      into a single concept. Two references to the respiration rate (220210, 224690) are
+      combined into a single concept.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - stay_id
+              - concept
+    columns:
+      - name: stay_id
+        description: "ICU stay identifier. Foreign key to int_first_icu_stay."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('int_first_icu_stay')
+                field: stay_id
+      - name: concept
+        description: "Vital concept description, derived by mapping stg_icu__chartevents.itemid via the CASE statement in int_vitals_first_24h; itemid selection was validated against stg_icu__d_items during exploration (see docs/exploration/concept_reference.md). Restricted to the 16-itemid MetaVision panel via the staging filter."
+        data_tests:
+          - not_null
+      - name: n_measurements
+        description: "Number of non-null valuenum measurements for this stay/vital over the first 24h. Always >= 1 by construction."
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 1"
+      - name: valuenum_mean
+        description: "Mean of valuenum measurements for this stay/vital over the first 24h."
+      - name: valuenum_std
+        description: "Sample standard deviation of valuenum measurements for this stay/vital over the first 24h. Null when n_measurements = 1."
+      - name: valuenum_min
+        description: "Min of valuenum measurements for this stay/vital over the first 24h."
+      - name: valuenum_q1
+        description: "25th percentile of valuenum measurements for this stay/vital over the first 24h."
+      - name: valuenum_median
+        description: "Median of valuenum measurements for this stay/vital over the first 24h."
+      - name: valuenum_q3
+        description: "75th percentile of valuenum measurements for this stay/vital over the first 24h."
+      - name: valuenum_max
+        description: "Max of valuenum measurements for this stay/vital over the first 24h."

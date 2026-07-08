@@ -1,0 +1,39 @@
+marker,itemid,label,fluid,category,n_rows,mean_val,min_val,max_val,p25,p75
+albumin,50862,Albumin,Blood,Chemistry,1032456,3.75,0.2,36,3.2,4.3
+albumin,53085,Albumin,Blood,Chemistry,69,3.88,2.7,4.9,3.6,4.1
+alkaline phosphatase,50863,Alkaline Phosphatase,Blood,Chemistry,1602599,130.79,0,5965,68,135
+alkaline phosphatase,53086,Alkaline Phosphatase,Blood,Chemistry,69,82.58,38,286,62,90
+alt,50861,Alanine Aminotransferase (ALT),Blood,Chemistry,1826482,63.09,0,61854,15,43
+ast,50878,Asparate Aminotransferase (AST),Blood,Chemistry,1793910,72.21,0,42606,19,45
+base excess,50802,Base Excess,Blood,Blood Gas,698337,-0.45,-414,188,-3,2
+bicarbonate,50882,Bicarbonate,Blood,Chemistry,3934240,25.27,2,132,23,28
+bilirubin,50885,"Bilirubin, Total",Blood,Chemistry,1605452,1.5,0,87.2,0.3,0.9
+bilirubin,53089,"Bilirubin, Total",Blood,Chemistry,69,0.8,0.2,3.8,0.5,0.9
+calcium,50893,"Calcium, Total",Blood,Chemistry,2969588,8.82,0,132,8.3,9.3
+chloride,50902,Chloride,Blood,Chemistry,4055101,101.95,39,155,99,105
+chloride,52535,Chloride,Blood,Chemistry,1235,102.4,71,117,100,105
+creatinine,50912,Creatinine,Blood,Chemistry,4319091,1.34,0,808,0.7,1.3
+creatinine,52546,Creatinine,Blood,Chemistry,1273,1,0.2,12.3,0.7,1.1
+glucose,50931,Glucose,Blood,Chemistry,3621769,127.87,0,23200,94,141
+glucose,52569,Glucose,Blood,Chemistry,1309,124.42,63,467,94,131
+hematocrit,51221,Hematocrit,Blood,Hematology,4331615,33.34,0,248,27.9,38.4
+hemoglobin,51222,Hemoglobin,Blood,Hematology,4181121,10.96,0,24.9,9.1,12.7
+inr,51237,INR(PT),Blood,Hematology,1783315,1.6,0.4,27.5,1.1,1.8
+lactate,50813,Lactate,Blood,Blood Gas,670016,4.21,-1.1,1276103,1.2,2.5
+magnesium,50960,Magnesium,Blood,Chemistry,2933221,2.03,0,160,1.8,2.2
+pco2,50818,pCO2,Blood,Blood Gas,698217,43.33,0,246,36,48
+ph,50820,pH,Blood,Blood Gas,754141,7.37,0,8.92,7.32,7.43
+phosphate,50970,Phosphate,Blood,Chemistry,2814319,3.56,0,59.7,2.9,4
+platelet,51265,Platelet Count,Blood,Hematology,4214048,230.76,5,2989,153,289
+po2,50821,pO2,Blood,Blood Gas,698483,126.15,-32,4242,69,148
+potassium,50971,Potassium,Blood,Chemistry,4149507,4.19,0.7,26.5,3.8,4.5
+potassium,52610,Potassium,Blood,Chemistry,1310,4.07,2.2,9,3.8,4.3
+pt,51237,INR(PT),Blood,Hematology,1783315,1.6,0.4,27.5,1.1,1.8
+pt,51274,PT,Blood,Hematology,1782642,17.39,2.6,1907,12.2,19.4
+ptt,51275,PTT,Blood,Hematology,1637800,43.09,1.2,198.1,28.5,47.9
+sodium,50983,Sodium,Blood,Chemistry,4111289,138.54,67,185,136,141
+sodium,52623,Sodium,Blood,Chemistry,1309,138.43,116,145,137,140
+troponin,51003,Troponin T,Blood,Chemistry,459872,0.47,0,52.4,0.03,0.3
+urea,51006,Urea Nitrogen,Blood,Chemistry,4202807,24.15,0,305,12,28
+urea,52647,Urea Nitrogen,Blood,Chemistry,1235,18.08,3,139,11,21
+white blood,51301,White Blood Cells,Blood,Hematology,4157284,8.89,0,12500,5.5,10.5

@@ -1,0 +1,67 @@
+
+# =========================================================
+# dbt artifacts (regenerable — never commit)
+# =========================================================
+target/
+dbt_packages/
+logs/
+.user.yml
+dbt_internal_packages/
+
+# dbt-fusion state / caches
+.dbt/
+*.duckdb
+*.duckdb.wal
+
+# =========================================================
+# Secrets & local configuration
+# =========================================================
+profiles.yml
+.env
+.envrc
+*.pem
+*.key
+service-account*.json
+
+# =========================================================
+# Python
+# =========================================================
+venv/
+.venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# =========================================================
+# IDE / editor
+# =========================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# =========================================================
+# OS
+# =========================================================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =========================================================
+# Data — safety net
+# =========================================================
+# MIMIC data must never be committed. These patterns catch
+# accidental exports; docs/exploration/*.csv (itemid metadata,
+# no PHI) is explicitly allowed below.
+*.parquet
+*.feather
+data/
+raw/
+
+# Allow itemid-reference exploration outputs (metadata only, no PHI)
+!docs/exploration/*.csv

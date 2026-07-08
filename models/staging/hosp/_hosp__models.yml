@@ -1,0 +1,168 @@
+version: 2
+
+models:
+
+  - name: stg_hosp__patients
+    description: >
+      One row per patient. Light staging over mimiciv_hosp.patients:
+      selects the demographic columns needed downstream and casts anchor_age,
+      anchor_year, and dod to consistent types. No filtering, cohort constructed downstream.
+    columns:
+      - name: subject_id
+        description: "Patient identifier. Unique in this model."
+        data_tests:
+          - unique
+          - not_null
+      - name: gender
+        description: "Patient's recorded sex (M/F)."
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['M', 'F']
+      - name: anchor_age
+        description: "Patient's age at anchor_year. Adults filtered downstream."
+        data_tests:
+          - not_null
+      - name: anchor_year
+        description: "De-identified anchor year (shifted per-patient into 2100–2200 range for de-identification). Used together with anchor_year_group to relate shifted timestamps back to a real calendar range."
+        data_tests:
+          - not_null
+      - name: anchor_year_group
+        description: "Real-world 3-year range the patient's anchor_year corresponds to (e.g. '2008 - 2010'). Only exposure to true calendar time in MIMIC-IV."
+      - name: dod
+        description: >
+          Date of death, sourced from hospital records and social-security death
+          records. Captures out-of-hospital deaths that hospital_expire_flag misses;
+          the ground-truth mortality signal for survival analysis in the mart layer.
+          Null for patients with no recorded death.
+
+  - name: stg_hosp__admissions
+    description: >
+      One row per hospital admission. Casts timestamp columns (admittime, dischtime,
+      deathtime) to timestamp and hospital_expire_flag to integer. hospital_expire_flag
+      is the raw in-hospital mortality label. It has some known limitations (misclassifies
+      post-discharge deaths as survivors, counts hospice discharges as false positives).
+      These will be addressed in the mart-layer multi-outcome design using other variables.
+    columns:
+      - name: hadm_id
+        description: "Hospital admission identifier."
+        data_tests:
+          - unique
+          - not_null
+      - name: subject_id
+        description: "Patient identifier. Foreign key to stg_hosp__patients."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_hosp__patients')
+                field: subject_id
+      - name: admittime
+        description: "Timestamp of hospital admission."
+        data_tests:
+          - not_null
+      - name: dischtime
+        description: "Timestamp of hospital discharge."
+        data_tests:
+          - not_null
+      - name: deathtime
+        description: "Timestamp of in-hospital death. Null when hospital_expire_flag = 0."
+      - name: admission_type
+        description: "Admission category (e.g. EMERGENCY, URGENT, ELECTIVE)."
+      - name: admission_location
+        description: "Location the patient was admitted from."
+      - name: discharge_location
+        description: "Location the patient was discharged to. Relevant for the hospice reclassification stretch analysis in the mart layer."
+      - name: insurance
+        description: "Insurance category."
+      - name: race
+        description: "Recorded race/ethnicity."
+      - name: marital_status
+        description: "Recorded marital status."
+      - name: hospital_expire_flag
+        description: "1 if the patient died during this admission, else 0. Raw label that mart-layer models refine into died_in_hospital, died_within_30d, died_within_1y."
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false
+
+  - name: stg_hosp__d_labitems
+    description: "Lookup: itemid → lab test description, fluid, category. One row per lab itemid."
+    columns:
+      - name: itemid
+        description: "Lab item identifier. Join key for stg_hosp__labevents."
+        data_tests:
+          - unique
+          - not_null
+      - name: label
+        description: "Human readable lab test name."
+      - name: fluid
+        description: "Specimen fluid the test is performed on (e.g. blood, urine)."
+      - name: category
+        description: "Lab category (e.g. chemistry, blood gas, hematology). Used during itemid selection to disambiguate duplicate analytes across panels."
+
+  - name: stg_hosp__labevents
+    description: >
+      One row per lab result, filtered to the canonical 28-itemid panel
+      (renal, hematology CBC, coagulation, electrolytes, acid-base/oxygenation,
+      liver, cardiac). Materialized as a partitioned table (monthly on charttime,
+      clustered on subject_id + itemid) because the source is ~120M rows and
+      the itemid filter is the load-bearing cost reduction. See
+      docs/exploration/concept_reference.md for the sourcing decisions behind the panel.
+    columns:
+      - name: labevent_id
+        description: "Unique identifier for a single lab result row."
+        data_tests:
+          - unique
+          - not_null
+      - name: subject_id
+        description: "Patient identifier."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_hosp__patients')
+                field: subject_id
+      - name: hadm_id
+        description: "Hospital admission identifier. Nullable (some labs drawn outside an admission)."
+      - name: itemid
+        description: "Lab test identifier. Restricted to the 28-itemid canonical panel."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_hosp__d_labitems')
+                field: itemid
+          - accepted_values:
+              arguments:
+                values: [
+                  50912, 51006,
+                  51222, 51221, 51301, 51265,
+                  51237, 51274, 51275,
+                  50983, 50971, 50902, 50882, 50931, 50893, 50960, 50970,
+                  50813, 50820, 50821, 50818, 50802,
+                  50885, 50878, 50861, 50863, 50862,
+                  51003
+                ]
+                quote: false
+      - name: charttime
+        description: "Time the specimen was collected."
+        data_tests:
+          - not_null
+      - name: valuenum
+        description: "Numeric value of the lab result. Null when the raw result is non-numeric."
+      - name: valueuom
+        description: "Unit of measurement for valuenum."
+      - name: ref_range_lower
+        description: "Lower bound of the lab's reference range as recorded on the result."
+      - name: ref_range_upper
+        description: "Upper bound of the lab's reference range as recorded on the result."
+      - name: priority
+        description: "STAT vs ROUTINE; carries independent clinical signal."
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['STAT', 'ROUTINE']
+              config:
+                severity: warn

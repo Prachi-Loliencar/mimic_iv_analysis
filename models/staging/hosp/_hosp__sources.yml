@@ -1,0 +1,63 @@
+sources:
+  - name: mimic_hosp
+    database: physionet-data
+    schema: mimiciv_3_1_hosp
+ 
+    quoting:
+      database: false
+      schema: false
+      identifier: false
+
+    tables:
+      - name: admissions
+        description: "One row per admission. Gives information on subject id, admit/discharge time and if (and when) the patient died in the hospital."
+        columns:
+          - name: hadm_id
+            data_tests:
+              - unique
+              - not_null
+      - name: patients
+        description: "One row per patient. Maps subject_id to patient's demographics such as age, gender and date of death."
+        columns:
+          - name: subject_id
+            data_tests:
+              - not_null
+              - unique
+      - name: labevents
+        description: "One row per lab test result. Long/tall format table with labevent_id as the key. Gives subject id, specimen type, and result of the test, including whether it was abnormal."
+        columns:
+          - name: labevent_id
+            data_tests:
+              - not_null
+              - unique
+      - name: d_labitems
+        description: "Look up table mapping itemid to test description, fluid specimen it was tested on and category. Lists a single lab test per row."
+        columns:
+          - name: itemid
+            data_tests:
+              - not_null
+              - unique
+      - name: diagnoses_icd
+        description: "One row per billed diagnosis per admission (and subject). Table providing ICD codes for each diagnosis mad"
+        columns:
+          - name: subject_id
+            data_tests:
+              - not_null
+          - name: hadm_id
+            data_tests: 
+              - not_null
+      - name: d_icd_diagnoses
+        description: "Lookup table mapping icd_code + icd_version to a human-readable description."
+        data_tests:
+          - dbt_utils.unique_combination_of_columns:
+              arguments:
+                combination_of_columns:
+                  - icd_code
+                  - icd_version
+        columns:
+          - name: icd_code
+            data_tests:
+              - not_null
+          - name: icd_version
+            data_tests:
+              - not_null

@@ -1,0 +1,142 @@
+version: 2
+
+models:
+
+  - name: stg_icu__icustays
+    description: >
+      Staged ICU stays, the cohort spine for this project. One row per
+      ICU stay, keyed by stay_id (a generated identifier derived from the transfers
+      table that does not exist in the raw hospital system). A patient can have
+      multiple stays with different stay_ids; first-stay selection is handled
+      downstream in int_first_icu_stay, not here. Contains ICU admit/discharge
+      timestamps (intime, outtime), length of stay in fractional days (los), and
+      first/last care unit. Adult and LOS ≥ 24h filters are applied downstream as
+      feature engineering constraints, not in staging.
+    columns:
+      - name: stay_id
+        description: "Stay identifier (primary key). Unique to each stay."
+        data_tests:
+          - unique
+          - not_null
+      - name: subject_id
+        description: "Patient identifier. Patient may be admitted multiple times so not unique in this model."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_hosp__patients')
+                field: subject_id
+      - name: hadm_id
+        description: "Hospital admission identifier. Foreign key to stg_hosp__admissions."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_hosp__admissions')
+                field: hadm_id
+      - name: first_careunit
+        description: "First ICU care unit the patient was admitted to for this stay (e.g. MICU, SICU, CCU, CVICU, TSICU, NICU)."
+      - name: last_careunit
+        description: "Last ICU care unit the patient was in before leaving the ICU."
+      - name: intime
+        description: "Timestamp of patient's transfer to the ICU."
+        data_tests:
+          - not_null
+      - name: outtime
+        description: "Timestamp of patient's transfer out of the ICU. (some values are null)"
+      - name: los
+        description: "Length of stay for the given ICU stay in fractional days. (some values are null)"
+
+  - name: stg_icu__d_items
+    description: >
+      Staged dimension table for all itemids used across ICU event tables
+      (chartevents, inputevents, outputevents, etc.). One row per itemid.
+      Includes label (concept name), category, unitname, param_type, linksto (which
+      event table the itemid belongs to), and lownormalvalue/highnormalvalue.
+      Reference ranges are sparsely populated for vitals, so
+      plausibility bounds for chartevents derived features must be defined manually
+      in the intermediate layer. Used to validate itemid selections before
+      hardcoding them in staging models.
+    columns:
+      - name: itemid
+        description: "Chart vital concept identifier. Join key for stg_icu__chartevents."
+        data_tests:
+          - unique
+          - not_null
+      - name: label
+        description: "Human-readable concept name for the itemid."
+      - name: linksto
+        description: "Which event table the itemid belongs to (e.g. chartevents, inputevents, outputevents). Used to scope itemid selections to the right event source."
+      - name: category
+        description: "Concept category (e.g. Routine Vital Signs, Respiratory, Neurological)."
+      - name: unitname
+        description: "Expected unit of measurement for the concept."
+      - name: param_type
+        description: "Value type recorded for the concept (Numeric, Text, etc.). GCS components are param_type = Text but valuenum is fully populated, so the string value column is safely dropped in stg_icu__chartevents."
+      - name: lownormalvalue
+        description: "Plausible min value for the concept. Values below this are possible but unusual. Sparsely populated for vitals."
+      - name: highnormalvalue
+        description: "Plausible max value for the concept. Values above this are possible but unusual. Sparsely populated for vitals."
+
+  - name: stg_icu__chartevents
+    description: >
+      Staged chartevents filtered to a validated 16-itemid MetaVision vital-signs
+      panel: heart rate, arterial and non-invasive systolic/diastolic/mean blood
+      pressures, respiratory rate, SpO2, temperature (°C and °F), and the three
+      GCS components. One row per charted observation per ICU stay; grain is
+      (stay_id, itemid, charttime). Numeric values only (valuenum, valueuom), the
+      string value column is dropped because valuenum is fully populated for the
+      selected itemids, including GCS components. Join to stg_icu__d_items for
+      concept name and category; plausibility bounds are defined manually in the
+      intermediate layer because d_items reference ranges are sparsely populated
+      for vitals. Materialized as a table partitioned by charttime (monthly, per
+      the ~100-year date-shift spread) and clustered by (stay_id, itemid) to keep
+      first-24h window scans cheap downstream.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - stay_id
+              - itemid
+              - charttime
+    columns:
+      - name: stay_id
+        description: "Identifier for the ICU stay. Foreign key to stg_icu__icustays."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_icu__icustays')
+                field: stay_id
+      - name: itemid
+        description: "Identifier for the vital being measured. Restricted to the 16-itemid MetaVision panel."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_icu__d_items')
+                field: itemid
+          - accepted_values:
+              arguments:
+                values: [
+                  220045, 220050, 220051, 220052, 220179, 220180,
+                  220181,
+                  225312,
+                  220210,
+                  224690,
+                  220277,
+                  223761,
+                  223762,
+                  220739,
+                  223900,
+                  223901
+                ]
+                quote: false
+      - name: charttime
+        description: "Timestamp of the charted vital recording. Together with (stay_id, itemid) forms the grain of the table."
+        data_tests:
+          - not_null
+      - name: valuenum
+        description: "Numeric value of the recorded vital."
+      - name: valueuom
+        description: "Unit of measurement for valuenum (e.g. bpm, mmHg, °C, °F). Null or blank for GCS components, which are unitless integer scores."

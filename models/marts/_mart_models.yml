@@ -1,0 +1,187 @@
+version: 2
+
+models:
+
+  - name: mart_icu_cohort
+    description: >
+      Analysis-ready ICU cohort mart. One row per adult first-ICU-stay
+      (stay_id), constructed by joining int_first_icu_stay to stg_hosp__patients
+      and stg_hosp__admissions and pivoting int_vitals_first_24h and
+      int_labs_first_24h from long to wide format via conditional aggregation.
+      Filters: adults only (age_at_intime >= 18), LOS >= 24h enforced upstream
+      in int_first_icu_stay.
+
+      Feature columns follow the naming pattern {concept}_{stat} for the
+      13 vital concepts and 28 lab concepts, where stat is one of
+      (mean, std, min, q1, median, q3, max, n_measurements). Left joins
+      onto the cohort spine preserve stays with no measurements for a
+      given concept (null values rather than dropped rows), respecting the
+      MNAR structure of clinical measurement patterns.
+
+      Survival-analysis outcomes (event_time, event_observed) are deliberately
+      deferred pending time-horizon design review. Three binary mortality outcomes are provided
+      for the classification framing.
+    data_tests:
+      # Cross-column integrity: dod cannot precede ICU intime
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "dod is null or dod >= date(intime)"
+      # Monotonicity of horizon-based mortality flags:
+      # if died within 30d, must have died within 1y.
+      # Guard against NULL propagation (three-valued logic) by allowing null dod.
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "dod is null or (not died_within_30d) or died_within_1y"
+
+    columns:
+
+      # ── Grain key ────────────────────────────────────────────────
+      - name: stay_id
+        description: "ICU stay identifier. Grain key — one row per stay."
+        data_tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('int_first_icu_stay')
+                field: stay_id
+
+      # ── Foreign keys ─────────────────────────────────────────────
+      - name: subject_id
+        description: "Patient identifier. Unique in this model (one row per patient's first ICU stay)."
+        data_tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_hosp__patients')
+                field: subject_id
+
+      - name: hadm_id
+        description: "Hospital admission identifier for the admission containing the first ICU stay."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_hosp__admissions')
+                field: hadm_id
+
+      # ── Filter column ────────────────────────────────────────────
+      - name: age_at_intime
+        description: >
+          Patient age at ICU intime, computed as
+          date_diff(date(intime), date(anchor_year, 1, 1), year) + anchor_age.
+          Ages > 89 are HIPAA top-coded to 91 in MIMIC-IV.
+        data_tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 18"
+
+      # ── Outcome columns ──────────────────────────────────────────
+      - name: died_in_hospital
+        description: >
+          Boolean. TRUE if the patient died during the admission containing
+          this ICU stay. Derived from admissions.hospital_expire_flag = 1.
+          Conflates biological mortality with location-of-death.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [true, false]
+                quote: false
+
+      - name: died_within_30d
+        description: >
+          Boolean. TRUE if death occurred within 30 days of ICU intime.
+          Derived from date_diff(dod, date(intime), day) <= 30.
+          NULL when dod is unlinked — this represents unobserved outcome,
+          not confirmed survival. Do not coalesce to FALSE downstream to avoid
+          conflating missing values with FALSE values.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [true, false]
+                quote: false
+              config:
+                where: "dod is not null"
+
+      - name: died_within_1y
+        description: >
+          Boolean. TRUE if death occurred within 365 days of ICU intime.
+          Same NULL semantics as died_within_30d.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [true, false]
+                quote: false
+              config:
+                where: "dod is not null"
+
+      # ── Demographics ─────────────────────────────────────────────
+      - name: gender
+        description: "Patient's recorded sex (M/F)."
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['M', 'F']
+
+      - name: anchor_year
+        description: "MIMIC-IV anchor_year; component of age_at_intime computation."
+
+      - name: race
+        description: "Self-reported race/ethnicity as captured at admission. Passthrough from stg_hosp__admissions."
+
+      - name: marital_status
+        description: "Marital status as captured at admission. Passthrough."
+
+      - name: insurance
+        description: "Insurance category as captured at admission. Passthrough."
+
+      # ── Stay/admission attributes ────────────────────────────────
+      - name: intime
+        description: "Timestamp of ICU admission. Anchor point for the first-24h feature window and for the horizon-based outcomes."
+
+      - name: dischtime
+        description: "Timestamp of hospital discharge. Carried through for future survival censoring."
+
+      - name: dod
+        description: >
+          Date of death from stg_hosp__patients. NULL for unobserved deaths
+          (out-of-hospital deaths that were not linked to MIMIC). Do not
+          treat NULL as confirmed survival.
+
+      - name: admission_type
+        description: "Category of admission (e.g. EMERGENCY, ELECTIVE, URGENT). Passthrough."
+
+      - name: admission_location
+        description: "Point of origin for the admission. Passthrough."
+
+      - name: discharge_location
+        description: >
+          Discharge disposition (e.g. HOME, HOSPICE, SNF, DIED). Retained for
+          the hospice-reclassification sensitivity analysis planned in
+          Module 3.
+
+      - name: first_careunit
+        description: "First ICU care unit for this stay (MICU, SICU, CCU, CVICU, TSICU, NICU)."
+
+      - name: last_careunit
+        description: "Last ICU care unit for this stay before transfer out."
+
+      # ── Feature columns ──────────────────────────────────────────
+      # 13 vital concepts × 8 stats = 104 columns
+      # 28 lab concepts   × 8 stats = 224 columns
+      # Naming: {concept}_{stat} where stat ∈ {mean, std, min, q1, median, q3, max, n_measurements}
+      # Documented via one representative example; full list of concepts
+      # in the model SQL's Jinja `set` blocks.
+
+      - name: heart_rate_mean
+        description: >
+          Representative feature column. Mean heart rate across the first
+          24h of the ICU stay, computed in int_vitals_first_24h and pivoted
+          here via MAX(CASE WHEN concept = 'heart_rate' THEN valuenum_mean END).
+          NULL where the stay had no heart_rate measurements. All 328 feature
+          columns follow the same {concept}_{stat} pattern and NULL semantics;
+          see model description and int_vitals_first_24h /
+          int_labs_first_24h for the source aggregation logic.

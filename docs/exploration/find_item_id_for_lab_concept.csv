@@ -1,0 +1,108 @@
+marker,itemid,label,fluid,category
+albumin,52022,"Albumin, Blood",Blood,Blood Gas
+albumin,53138,(Albumin),Blood,Chemistry
+albumin,53085,Albumin,Blood,Chemistry
+albumin,50862,Albumin,Blood,Chemistry
+alkaline phosphatase,53086,Alkaline Phosphatase,Blood,Chemistry
+alkaline phosphatase,50863,Alkaline Phosphatase,Blood,Chemistry
+alkaline phosphatase,51241,Leukocyte Alkaline Phosphatase,Blood,Hematology
+alt,50861,Alanine Aminotransferase (ALT),Blood,Chemistry
+ast,50878,Asparate Aminotransferase (AST),Blood,Chemistry
+base excess,50802,Base Excess,Blood,Blood Gas
+bicarbonate,50803,"Calculated Bicarbonate, Whole Blood",Blood,Blood Gas
+bicarbonate,50882,Bicarbonate,Blood,Chemistry
+bilirubin,50883,"Bilirubin, Direct",Blood,Chemistry
+bilirubin,50884,"Bilirubin, Indirect",Blood,Chemistry
+bilirubin,51568,"Bilirubin, Neonatal",Blood,Chemistry
+bilirubin,51569,"Bilirubin, Neonatal, Direct",Blood,Chemistry
+bilirubin,51570,"Bilirubin, Neonatal, Indirect",Blood,Chemistry
+bilirubin,53089,"Bilirubin, Total",Blood,Chemistry
+bilirubin,50885,"Bilirubin, Total",Blood,Chemistry
+calcium,52029,% Ionized Calcium,Blood,Blood Gas
+calcium,50808,Free Calcium,Blood,Blood Gas
+calcium,52035,Total Calcium,Blood,Blood Gas
+calcium,52034,Total Calcium,Blood,Blood Gas
+calcium,50893,"Calcium, Total",Blood,Chemistry
+calcium,51624,Free Calcium,Blood,Chemistry
+chloride,50806,"Chloride, Whole Blood",Blood,Blood Gas
+chloride,52434,"Chloride, Whole Blood",Blood,Blood Gas
+chloride,52535,Chloride,Blood,Chemistry
+chloride,50902,Chloride,Blood,Chemistry
+creatinine,52024,"Creatinine, Whole Blood",Blood,Blood Gas
+creatinine,50912,Creatinine,Blood,Chemistry
+creatinine,52546,Creatinine,Blood,Chemistry
+glucose,50809,Glucose,Blood,Blood Gas
+glucose,52027,"Glucose, Whole Blood",Blood,Blood Gas
+glucose,52569,Glucose,Blood,Chemistry
+glucose,50931,Glucose,Blood,Chemistry
+hematocrit,52028,Hematocrit,Blood,Blood Gas
+hematocrit,50810,"Hematocrit, Calculated",Blood,Blood Gas
+hematocrit,51638,Hematocrit,Blood,Chemistry
+hematocrit,51639,Hematocrit,Blood,Chemistry
+hematocrit,51221,Hematocrit,Blood,Hematology
+hemoglobin,50811,Hemoglobin,Blood,Blood Gas
+hemoglobin,52032,P50 of Hemoglobin,Blood,Blood Gas
+hemoglobin,50852,% Hemoglobin A1c,Blood,Chemistry
+hemoglobin,50855,Absolute Hemoglobin,Blood,Chemistry
+hemoglobin,51631,Glycated Hemoglobin,Blood,Chemistry
+hemoglobin,51640,Hemoglobin,Blood,Chemistry
+hemoglobin,51641,Hemoglobin  A,Blood,Chemistry
+hemoglobin,51642,Hemoglobin  A1,Blood,Chemistry
+hemoglobin,51643,Hemoglobin  A2,Blood,Chemistry
+hemoglobin,51644,Hemoglobin  C,Blood,Chemistry
+hemoglobin,51646,Hemoglobin  F,Blood,Chemistry
+hemoglobin,51647,Hemoglobin  S,Blood,Chemistry
+hemoglobin,51645,"Hemoglobin, Calculated",Blood,Chemistry
+hemoglobin,51212,Fetal Hemoglobin,Blood,Hematology
+hemoglobin,51222,Hemoglobin,Blood,Hematology
+hemoglobin,51223,Hemoglobin A2,Blood,Hematology
+hemoglobin,51224,Hemoglobin C,Blood,Hematology
+hemoglobin,51225,Hemoglobin F,Blood,Hematology
+hemoglobin,52128,Hemoglobin H Inclusion,Blood,Hematology
+hemoglobin,52129,Hemoglobin Other,Blood,Hematology
+hemoglobin,52157,Plasma Hemoglobin,Blood,Hematology
+hemoglobin,51285,"Reticulocyte, Cellular Hemoglobin",Blood,Hematology
+inr,51675,INR(PT),Blood,Chemistry
+inr,51237,INR(PT),Blood,Hematology
+lactate,52442,Lactate,Blood,Blood Gas
+lactate,50813,Lactate,Blood,Blood Gas
+lactate,53154,Lactate,Blood,Chemistry
+lactate,50954,Lactate Dehydrogenase (LD),Blood,Chemistry
+magnesium,50960,Magnesium,Blood,Chemistry
+pco2,50818,pCO2,Blood,Blood Gas
+ph,50820,pH,Blood,Blood Gas
+phosphate,50970,Phosphate,Blood,Chemistry
+platelet,53189,Platelet Count,Blood,Chemistry
+platelet,52142,Mean Platelet Volume,Blood,Hematology
+platelet,52159,Platelet Aggregation,Blood,Hematology
+platelet,51264,Platelet Clumps,Blood,Hematology
+platelet,51265,Platelet Count,Blood,Hematology
+platelet,51266,Platelet Smear,Blood,Hematology
+po2,50821,pO2,Blood,Blood Gas
+potassium,52452,"Potassium, Whole Blood",Blood,Blood Gas
+potassium,50822,"Potassium, Whole Blood",Blood,Blood Gas
+potassium,52610,Potassium,Blood,Chemistry
+potassium,50971,Potassium,Blood,Chemistry
+pt,51675,INR(PT),Blood,Chemistry
+pt,51237,INR(PT),Blood,Hematology
+pt,52921,PT,Blood,Hematology
+pt,51274,PT,Blood,Hematology
+pt,52163,PT Control,Blood,Hematology
+pt,52164,PT Mean,Blood,Hematology
+ptt,52923,PTT,Blood,Hematology
+ptt,51275,PTT,Blood,Hematology
+ptt,52165,PTT Control,Blood,Hematology
+ptt,52167,PTT mea,Blood,Hematology
+ptt,52166,PTT-LA,Blood,Hematology
+sodium,50824,"Sodium, Whole Blood",Blood,Blood Gas
+sodium,52455,"Sodium, Whole Blood",Blood,Blood Gas
+sodium,50983,Sodium,Blood,Chemistry
+sodium,52623,Sodium,Blood,Chemistry
+troponin,52642,Troponin I,Blood,Chemistry
+troponin,51002,Troponin I,Blood,Chemistry
+troponin,51003,Troponin T,Blood,Chemistry
+urea,51006,Urea Nitrogen,Blood,Chemistry
+urea,52647,Urea Nitrogen,Blood,Chemistry
+white blood,51756,White Blood Cells,Blood,Chemistry
+white blood,51755,White Blood Cells,Blood,Chemistry
+white blood,51301,White Blood Cells,Blood,Hematology

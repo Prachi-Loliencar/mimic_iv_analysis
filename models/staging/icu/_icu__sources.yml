@@ -1,0 +1,58 @@
+sources:
+  - name: mimic_icu
+    database: physionet-data
+    schema: mimiciv_3_1_icu
+ 
+    quoting:
+      database: false
+      schema: false
+      identifier: false
+
+    tables:
+      - name: icustays
+        description: "  One row per ICU stay (stay_id). stay_id is a generated identifier derived
+            from the transfers table — it does not exist in the raw hospital system.
+            A patient can have multiple stays with different stay_ids. Contains ICU
+            admit/discharge times (intime, outtime), length of stay in fractional days (los),
+            and care unit. The cohort spine for this project"
+        columns:
+          - name: stay_id
+            data_tests:
+              - unique
+              - not_null
+          - name: subject_id
+            data_tests:
+              - not_null
+          - name: hadm_id
+            data_tests:
+              - not_null
+      - name: chartevents
+        description: "One row per charted observation per ICU stay. Tall/long format keyed by
+          itemid (join to d_items for concept name). Contains vital signs, ventilator
+          settings, mental status, and more — the primary source of hourly ICU data.
+          ~330M rows; always filter to a validated itemid list before use.
+          Note: lab values duplicated from labevents may appear here; labevents
+          is the ground truth in case of disagreement. "
+        columns:
+          - name: stay_id
+            data_tests:
+              - not_null
+          - name: itemid
+            data_tests:
+              - not_null
+          - name: charttime
+            data_tests:
+              - not_null
+      - name: d_items
+        description: "Dimension/lookup table for all itemids used across ICU event tables
+          (chartevents, inputevents, outputevents, etc.). One row per itemid.
+          Key columns: label (concept name), abbreviation, category, unitname,
+          linksto (which event table the itemid belongs to), and normal value ranges.
+          Use this to validate itemid selections for vital signs before hardcoding
+          them in staging models."
+        columns:
+          - name: itemid
+            data_tests:
+              - not_null
+              - unique
+ 

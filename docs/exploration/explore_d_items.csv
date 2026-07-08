@@ -1,0 +1,17 @@
+itemid,label,linksto,category,unitname,param_type,low_normal_value,low_normal_value_1
+220045,Heart Rate,chartevents,Routine Vital Signs,bpm,Numeric,,
+220050,Arterial Blood Pressure systolic,chartevents,Routine Vital Signs,mmHg,Numeric,90,140
+220051,Arterial Blood Pressure diastolic,chartevents,Routine Vital Signs,mmHg,Numeric,60,90
+220052,Arterial Blood Pressure mean,chartevents,Routine Vital Signs,mmHg,Numeric,,
+220179,Non Invasive Blood Pressure systolic,chartevents,Routine Vital Signs,mmHg,Numeric,,
+220180,Non Invasive Blood Pressure diastolic,chartevents,Routine Vital Signs,mmHg,Numeric,,
+220181,Non Invasive Blood Pressure mean,chartevents,Routine Vital Signs,mmHg,Numeric,,
+220210,Respiratory Rate,chartevents,Respiratory,insp/min,Numeric,,
+220277,O2 saturation pulseoxymetry,chartevents,Respiratory,%,Numeric,,
+220739,GCS - Eye Opening,chartevents,Neurological,,Text,,
+223761,Temperature Fahrenheit,chartevents,Routine Vital Signs,°F,Numeric,,
+223762,Temperature Celsius,chartevents,Routine Vital Signs,°C,Numeric,,
+223900,GCS - Verbal Response,chartevents,Neurological,,Text,,
+223901,GCS - Motor Response,chartevents,Neurological,,Text,,
+224690,Respiratory Rate (Total),chartevents,Respiratory,insp/min,Numeric,,36
+225312,ART BP Mean,chartevents,Routine Vital Signs,mmHg,Numeric,,
