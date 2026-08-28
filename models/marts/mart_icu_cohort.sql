@@ -35,6 +35,7 @@ age_computed as (
         f.intime,
         f.first_careunit,
         f.last_careunit,
+        f.los,
         -- patient attributes needed downstream
         p.gender,
         p.dod,
@@ -58,6 +59,7 @@ cohort_spine as (
         ac.gender,
         ac.dod,
         ac.age_at_intime,
+        ac.los,
         -- newly joined in from admissions
         a.dischtime,
         a.admission_type,
@@ -99,6 +101,7 @@ outcomes_cte as (
         discharge_location,
         first_careunit,
         last_careunit,
+        los,
         -- outcome information
         dod,
         hospital_expire_flag = 1 as died_in_hospital,
