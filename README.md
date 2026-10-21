@@ -1,12 +1,12 @@
 # MIMIC-IV ICU Analytics Pipeline
 
-A tested, documented **dbt + BigQuery** analytics-engineering pipeline that transforms ~120M rows of raw MIMIC-IV v3.1 critical care data into an analysis-ready adult ICU cohort mart, designed to support downstream in-hospital mortality prediction and survival analysis, with parallel **Tableau** and **Power BI** cohort outcome dashboards built on top of the mart.
+A tested, documented **dbt + BigQuery** analytics-engineering pipeline that transforms ~120M rows of raw MIMIC-IV v3.1 critical care data into an analysis-ready adult ICU cohort mart, designed to support downstream in-hospital mortality prediction and survival analysis, with parallel **Power BI** and **Tableau** cohort outcome dashboards built on top of the mart.
 
 ---
 
 ## Overview
 
-This project builds the SQL/dbt layer that stands between raw electronic health record data and downstream analytics. It follows the standard analytics-engineering pattern, staging → intermediate → marts, with disciplined testing, documentation, cost management, and design-decision documentation appropriate for a production dbt project on BigQuery. The mart is then surfaced through two BI dashboards, one in Tableau and one in Power BI, built to the same specification (see [BI dashboards](#bi-dashboards)).
+This project builds the SQL/dbt layer that stands between raw electronic health record data and downstream analytics. It follows the standard analytics-engineering pattern, staging → intermediate → marts, with disciplined testing, documentation, cost management, and design-decision documentation appropriate for a production dbt project on BigQuery. The mart is then surfaced through two BI dashboards, one in Power BI and one in Tableau, built to the same specification (see [BI dashboards](#bi-dashboards)).
 
 **Clinical framing.** Given features observed in the first 24 hours of a patient's first ICU stay, predict the probability of in-hospital mortality. This is a *prognostic* framing that matches how established ICU severity scores (APACHE II/III, SAPS II/III, SOFA, OASIS) are constructed and how such a model would be deployed clinically - scored once at hour 24 to inform risk stratification and resource allocation.
 
@@ -33,8 +33,8 @@ flowchart LR
     A[MIMIC-IV v3.1<br/>Sources] --> B[Staging<br/>9 models]
     B --> C[Intermediate<br/>3 models]
     C --> D[Mart<br/>mart_icu_cohort]
-    D --> E[Tableau<br/>dashboard]
-    D --> F[Power BI<br/>dashboard]
+    D --> E[Power BI<br/>dashboard]
+    D --> F[Tableau<br/>dashboard]
 ```
 
 **Staging (`models/staging/`):** 1:1 light cleaning over source tables: column selection, snake_case renaming, type casting, and early filtering to canonical itemid panels on the two high volume event tables. No business logic.
@@ -43,7 +43,7 @@ flowchart LR
 
 **Mart (`models/marts/`):** a wide-format analysis-ready cohort mart, one row per stay, joining demographics, admission attributes, outcomes, and first-24h (lab and vital) feature summaries.
 
-**BI (`docs/exploration/dashboard/`):** two cohort-outcomes dashboards, one in Tableau and one in Power BI, both reading `mart_icu_cohort` directly from BigQuery. See [BI dashboards](#bi-dashboards).
+**BI (`docs/exploration/dashboard/`):** two cohort-outcomes dashboards, one in Power BI and one in Tableau, both reading `mart_icu_cohort` directly from BigQuery. See [BI dashboards](#bi-dashboards).
 
 
 ![dbt Lineage Graph](docs/lineage_graph.jpg)
@@ -128,13 +128,13 @@ The mart **LEFT joins** from the cohort spine onto the vitals and labs feature t
 ---
 ## BI dashboards
 
-The mart is surfaced through two descriptive dashboards built to the same specification, one in **Tableau** and one in **Power BI**, both connected directly to `mart_icu_cohort` in BigQuery. Building the same brief twice was deliberate: it isolates where the two tools genuinely differ (semantic modeling, measure definition, role-playing dimensions) from where the difference is only cosmetic.
+The mart is surfaced through two descriptive dashboards built to the same specification, one in **Power BI** and one in **Tableau**, both connected directly to `mart_icu_cohort` in BigQuery. Building the same brief twice was deliberate: it isolates where the two tools genuinely differ (semantic modeling, measure definition, role-playing dimensions) from where the difference is only cosmetic.
 
 Both answer the same question: **within the adult first-ICU-stay cohort, how does in-hospital mortality vary by care unit, gender, and length of stay, and how much of that variation is case mix rather than risk?**
 
-All dashboard snapshots and exports live in **[`docs/exploration/dashboard/`](docs/exploration/dashboard/)** — both dashboards as PNG snapshots, shown inline below, plus PDF exports of the Power BI report canvas and its underlying model view. GitHub cannot embed PDFs, so those two are linked from the [Power BI](#power-bi) subsection rather than displayed.
+All dashboard snapshots and exports live in **[`docs/exploration/dashboard/`](docs/exploration/dashboard/)**: both dashboards as PNG snapshots, shown inline below, plus PDF exports of the Power BI report canvas and its underlying model view. GitHub cannot embed PDFs, so those two are linked from the [Power BI](#power-bi) subsection rather than displayed.
 
-**An architecture note:** the dbt mart is intentionally a wide, denormalized feature matrix (one row per stay), which is the right shape for ML and single-table analysis. The **star schema lives in the BI semantic layer, not the warehouse** — a fact table plus small conformed dimensions derived from the mart. This keeps the warehouse mart ML-ready while giving the BI tools the navigational model they expect.
+**An architecture note:** the dbt mart is intentionally a wide, denormalized feature matrix (one row per stay), which is the right shape for ML and single-table analysis. The **star schema lives in the BI semantic layer, not the warehouse**, as a fact table plus small conformed dimensions derived from the mart. This keeps the warehouse mart ML-ready while giving the BI tools the navigational model they expect.
 
 ### Shared panel design
 
@@ -156,17 +156,11 @@ Descriptive ICU dashboards invite causal misreading, so both builds carry the ca
 - **The cohort is floored at LOS ≥ 24h,** so every rate on the dashboard is conditional on surviving to hour 24 (see [Cohort definition](#cohort-definition)).
 - **Low-volume care units (N < 900) are excluded from breakdowns but retained in cohort totals,** so panel subtotals will not sum to the headline stay count by design.
 
-### Tableau
-
-![Tableau ICU cohort dashboard](docs/exploration/dashboard/tableau/mimic_icu_cohort_dashboard.png)
-
-A single-sheet dashboard over a live BigQuery connection. Care-unit grouping and length-of-stay banding are built as Tableau calculated fields and bins on top of the mart's raw `first_careunit` and `los`, keeping transformation logic visible in the workbook rather than pushed into extra dbt models.
-
 ### Power BI
 
 ![Power BI ICU cohort dashboard](docs/exploration/dashboard/powerbi/mimic_icu_cohort_dashboard.png)
 
-The report canvas mirrors the Tableau panels, with admission type added as a slicer; also available as a [PDF export](docs/exploration/dashboard/powerbi/mimic_icu_cohort_dashboard.pdf).
+The report canvas carries the six shared panels above, with admission type added as a slicer; also available as a [PDF export](docs/exploration/dashboard/powerbi/mimic_icu_cohort_dashboard.pdf).
 
 Underneath it, the data is rebuilt as a small star schema rather than a single flat table, which is where the two tools diverge most ([model view (PDF)](docs/exploration/dashboard/powerbi/Model_View_For_mimic_dashboard.pdf)):
 
@@ -182,6 +176,13 @@ Two modeling decisions worth noting:
 - **Raw source columns are retained and presentation names are layered on top** of only the surfaced fields, so the model stays traceable back to mart column names while the report surface reads in clinical language.
 
 Rates, indices, and banding are DAX measures (`Mortality Rate`, `Mortality Rate Index`, `Median Length of Stay`, `Length of Stay Band`) rather than precomputed mart columns, keeping the mart at feature grain and the aggregation logic in the semantic layer.
+
+### Tableau
+
+![Tableau ICU cohort dashboard](docs/exploration/dashboard/tableau/mimic_icu_cohort_dashboard.png)
+
+The same panels as a single-sheet dashboard over a live BigQuery connection. Where Power BI resolves grouping and banding through a semantic model, Tableau builds care-unit grouping and length-of-stay banding as calculated fields and bins directly on the mart's raw `first_careunit` and `los`, keeping transformation logic visible in the workbook rather than pushed into extra dbt models.
+
 
 > Both dashboards are published here as static exports only. Live workbooks are not distributed, since rendering them requires credentialed access to the underlying MIMIC-IV BigQuery tables.
 
@@ -242,7 +243,7 @@ Fahrenheit → Celsius temperature conversion happens on raw values *before* agg
 
 `table` materialization means every `dbt build`/`dbt run` fully rebuilds the staging models via `CREATE OR REPLACE TABLE` and re-scans the source, regardless of whether source data or model SQL changed. Since MIMIC-IV is static, this is pure overhead when iterating on downstream models. Mitigation:
 
-- **Scope runs with `--select`/`--exclude`** during iteration — e.g. `dbt build --select int_labs_first_24h` avoids rebuilding `stg_hosp__labevents` while working on intermediate/mart models. Unscoped `dbt build` is reserved for milestone checkpoints.
+- **Scope runs with `--select`/`--exclude`** during iteration. For example, `dbt build --select int_labs_first_24h` avoids rebuilding `stg_hosp__labevents` while working on intermediate/mart models. Unscoped `dbt build` is reserved for milestone checkpoints.
 - **Dry run before running.** `dbt compile` + the BigQuery console's "This query will process X bytes" estimate gives a cost preview before committing to a run.
 - **Post run cost inspection.** `INFORMATION_SCHEMA.JOBS_BY_USER` surfaces the actual bytes billed and slot-ms used per query, useful for spotting expensive scans that snuck through.
 
@@ -267,15 +268,15 @@ Passthrough columns (used only within CTEs, not in final outputs) are documented
 - **BigQuery** on GCP
 - **MIMIC-IV v3.1** hosted on the PhysioNet-managed `physionet-data` project (read-only)
 - **SQLFluff** for BigQuery/dbt-templated SQL linting
-- **Tableau** and **Power BI** (DAX, star-schema semantic model) for the BI layer over the mart
+- **Power BI** (DAX, star-schema semantic model) and **Tableau** for the BI layer over the mart
 
 ---
 
 ## Getting started
 
-Requires PhysioNet credentialed access to MIMIC-IV v3.1 (read access to `physionet-data.mimiciv_3_1_hosp` and `physionet-data.mimiciv_3_1_icu`) and a GCP project with the BigQuery API enabled. Authenticate via `gcloud auth application-default login` — PhysioNet access does not support service accounts, so `~/.dbt/profiles.yml` must use `method: oauth`.
+Requires PhysioNet credentialed access to MIMIC-IV v3.1 (read access to `physionet-data.mimiciv_3_1_hosp` and `physionet-data.mimiciv_3_1_icu`) and a GCP project with the BigQuery API enabled. Authenticate via `gcloud auth application-default login`. PhysioNet access does not support service accounts, so `~/.dbt/profiles.yml` must use `method: oauth`.
 
-Two project-specific gotchas: delete the scaffolded `models/example/` folder created by `dbt init` before building, or it shows up as a spurious `dbt build` failure; and prefer scoped builds (`dbt build --select int_vitals_first_24h+`) during iteration — `stg_hosp__labevents`/`stg_icu__chartevents` are `table`-materialized and re-scan their full source on every unscoped run (see [Cost-conscious development](#cost-conscious-development)).
+Two project-specific gotchas: delete the scaffolded `models/example/` folder created by `dbt init` before building, or it shows up as a spurious `dbt build` failure; and prefer scoped builds (`dbt build --select int_vitals_first_24h+`) during iteration, since `stg_hosp__labevents`/`stg_icu__chartevents` are `table`-materialized and re-scan their full source on every unscoped run (see [Cost-conscious development](#cost-conscious-development)).
 
 ---
 
@@ -294,8 +295,8 @@ mimic_iv_analysis/
 │   └── exploration/
 │       ├── concept_reference.md    # itemid selection + column choices + plausibility filters
 │       ├── dashboard/
-│       │   ├── tableau/            # Tableau dashboard export (PNG)
-│       │   └── powerbi/            # Power BI dashboard (PNG + PDF) + model view (PDF)
+│       │   ├── powerbi/            # Power BI dashboard (PNG + PDF) + model view (PDF)
+│       │   └── tableau/            # Tableau dashboard export (PNG)
 │       └── ...                     # exploratory SQL + result CSVs
 ├── tests/
 ├── packages.yml
@@ -313,7 +314,7 @@ This repository currently covers the SQL/dbt cohort-construction layer and a des
 
 ## About
 
-**Prachi Loliencar** — PhD-level data scientist with 4+ years of postdoctoral healthcare ML experience across clinical and genomics domains.
+**Prachi Loliencar**, PhD-level data scientist with 4+ years of postdoctoral healthcare ML experience across clinical and genomics domains.
 
 - LinkedIn: [linkedin.com/in/prachiloliencar](https://linkedin.com/in/prachiloliencar)
 - GitHub: [github.com/Prachi-Loliencar](https://github.com/Prachi-Loliencar)
@@ -327,4 +328,4 @@ This repository currently covers the SQL/dbt cohort-construction layer and a des
 
 ---
 
-*MIMIC-IV data is governed by the [PhysioNet Credentialed Health Data Use Agreement](https://physionet.org/content/mimiciv/view-dua/3.1/). This repository contains code only — no patient data is stored, committed, or transmitted outside the credentialed BigQuery environment.*
+*MIMIC-IV data is governed by the [PhysioNet Credentialed Health Data Use Agreement](https://physionet.org/content/mimiciv/view-dua/3.1/). This repository contains code only. No patient data is stored, committed, or transmitted outside the credentialed BigQuery environment.*
