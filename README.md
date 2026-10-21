@@ -2,6 +2,8 @@
 
 A tested, documented **dbt + BigQuery** analytics-engineering pipeline that transforms ~120M rows of raw MIMIC-IV v3.1 critical care data into an analysis-ready adult ICU cohort mart, designed to support downstream in-hospital mortality prediction and survival analysis, with parallel **Power BI** and **Tableau** cohort outcome dashboards built on top of the mart.
 
+**Jump to:** [Architecture](#architecture) &nbsp;·&nbsp; [Cohort definition](#cohort-definition) &nbsp;·&nbsp; [Outcome design](#outcome-design) &nbsp;·&nbsp; [Data model](#data-model) &nbsp;·&nbsp; [BI dashboards](#bi-dashboards) &nbsp;·&nbsp; [Design decisions](#design-decisions)
+
 ---
 
 ## Overview
