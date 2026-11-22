@@ -1,0 +1,97 @@
+first_careunit,admission_type,n_stays,deaths,mortality_rate,share_of_unit
+Cardiac Vascular Intensive Care Unit (CVICU),SURGICAL SAME DAY ADMISSION,3273,16,0.0049,0.2974
+Cardiac Vascular Intensive Care Unit (CVICU),URGENT,2787,101,0.0362,0.2532
+Cardiac Vascular Intensive Care Unit (CVICU),EW EMER.,1713,122,0.0712,0.1556
+Cardiac Vascular Intensive Care Unit (CVICU),ELECTIVE,1513,18,0.0119,0.1375
+Cardiac Vascular Intensive Care Unit (CVICU),OBSERVATION ADMIT,1191,41,0.0344,0.1082
+Cardiac Vascular Intensive Care Unit (CVICU),DIRECT EMER.,526,14,0.0266,0.0478
+Cardiac Vascular Intensive Care Unit (CVICU),DIRECT OBSERVATION,3,0,0,0.0003
+Cardiac Vascular Intensive Care Unit (CVICU),EU OBSERVATION,1,0,0,0.0001
+Coronary Care Unit (CCU),EW EMER.,2738,344,0.1256,0.4519
+Coronary Care Unit (CCU),URGENT,1895,268,0.1414,0.3128
+Coronary Care Unit (CCU),OBSERVATION ADMIT,679,85,0.1252,0.1121
+Coronary Care Unit (CCU),DIRECT EMER.,355,32,0.0901,0.0586
+Coronary Care Unit (CCU),ELECTIVE,228,6,0.0263,0.0376
+Coronary Care Unit (CCU),SURGICAL SAME DAY ADMISSION,145,10,0.069,0.0239
+Coronary Care Unit (CCU),DIRECT OBSERVATION,10,0,0,0.0017
+Coronary Care Unit (CCU),EU OBSERVATION,5,0,0,0.0008
+Coronary Care Unit (CCU),AMBULATORY OBSERVATION,4,0,0,0.0007
+Intensive Care Unit (ICU),EW EMER.,8,6,0.75,0.3478
+Intensive Care Unit (ICU),URGENT,8,4,0.5,0.3478
+Intensive Care Unit (ICU),OBSERVATION ADMIT,6,1,0.1667,0.2609
+Intensive Care Unit (ICU),DIRECT EMER.,1,0,0,0.0435
+Med/Surg,EW EMER.,1,0,0,1
+Medical Intensive Care Unit (MICU),EW EMER.,6601,990,0.15,0.664
+Medical Intensive Care Unit (MICU),URGENT,1970,450,0.2284,0.1981
+Medical Intensive Care Unit (MICU),OBSERVATION ADMIT,1093,203,0.1857,0.1099
+Medical Intensive Care Unit (MICU),DIRECT EMER.,185,32,0.173,0.0186
+Medical Intensive Care Unit (MICU),SURGICAL SAME DAY ADMISSION,52,6,0.1154,0.0052
+Medical Intensive Care Unit (MICU),ELECTIVE,23,3,0.1304,0.0023
+Medical Intensive Care Unit (MICU),EU OBSERVATION,14,0,0,0.0014
+Medical Intensive Care Unit (MICU),DIRECT OBSERVATION,3,0,0,0.0003
+Medical Intensive Care Unit (MICU),AMBULATORY OBSERVATION,1,0,0,0.0001
+Medical/Surgical Intensive Care Unit (MICU/SICU),EW EMER.,4623,637,0.1378,0.581
+Medical/Surgical Intensive Care Unit (MICU/SICU),URGENT,1328,239,0.18,0.1669
+Medical/Surgical Intensive Care Unit (MICU/SICU),OBSERVATION ADMIT,1117,211,0.1889,0.1404
+Medical/Surgical Intensive Care Unit (MICU/SICU),SURGICAL SAME DAY ADMISSION,394,10,0.0254,0.0495
+Medical/Surgical Intensive Care Unit (MICU/SICU),DIRECT EMER.,358,92,0.257,0.045
+Medical/Surgical Intensive Care Unit (MICU/SICU),ELECTIVE,113,15,0.1327,0.0142
+Medical/Surgical Intensive Care Unit (MICU/SICU),EU OBSERVATION,13,2,0.1538,0.0016
+Medical/Surgical Intensive Care Unit (MICU/SICU),DIRECT OBSERVATION,9,0,0,0.0011
+Medical/Surgical Intensive Care Unit (MICU/SICU),AMBULATORY OBSERVATION,2,0,0,0.0003
+Medicine,URGENT,7,2,0.2857,0.5385
+Medicine,OBSERVATION ADMIT,4,0,0,0.3077
+Medicine,EW EMER.,2,0,0,0.1538
+Medicine/Cardiology Intermediate,URGENT,1,0,0,1
+Neuro Intermediate,OBSERVATION ADMIT,1485,31,0.0209,0.3931
+Neuro Intermediate,EW EMER.,1295,31,0.0239,0.3428
+Neuro Intermediate,SURGICAL SAME DAY ADMISSION,638,1,0.0016,0.1689
+Neuro Intermediate,URGENT,250,6,0.024,0.0662
+Neuro Intermediate,EU OBSERVATION,42,0,0,0.0111
+Neuro Intermediate,DIRECT EMER.,36,0,0,0.0095
+Neuro Intermediate,ELECTIVE,20,0,0,0.0053
+Neuro Intermediate,DIRECT OBSERVATION,12,0,0,0.0032
+Neuro Stepdown,OBSERVATION ADMIT,437,12,0.0275,0.5052
+Neuro Stepdown,EW EMER.,172,2,0.0116,0.1988
+Neuro Stepdown,SURGICAL SAME DAY ADMISSION,148,0,0,0.1711
+Neuro Stepdown,URGENT,93,1,0.0108,0.1075
+Neuro Stepdown,EU OBSERVATION,6,0,0,0.0069
+Neuro Stepdown,ELECTIVE,4,0,0,0.0046
+Neuro Stepdown,DIRECT OBSERVATION,3,0,0,0.0035
+Neuro Stepdown,DIRECT EMER.,2,0,0,0.0023
+Neuro Surgical Intensive Care Unit (Neuro SICU),EW EMER.,620,190,0.3065,0.5487
+Neuro Surgical Intensive Care Unit (Neuro SICU),OBSERVATION ADMIT,320,83,0.2594,0.2832
+Neuro Surgical Intensive Care Unit (Neuro SICU),URGENT,121,34,0.281,0.1071
+Neuro Surgical Intensive Care Unit (Neuro SICU),SURGICAL SAME DAY ADMISSION,45,4,0.0889,0.0398
+Neuro Surgical Intensive Care Unit (Neuro SICU),DIRECT EMER.,13,3,0.2308,0.0115
+Neuro Surgical Intensive Care Unit (Neuro SICU),EU OBSERVATION,8,2,0.25,0.0071
+Neuro Surgical Intensive Care Unit (Neuro SICU),ELECTIVE,3,0,0,0.0027
+Neurology,EW EMER.,1,0,0,1
+PACU,EW EMER.,41,9,0.2195,0.7193
+PACU,OBSERVATION ADMIT,12,0,0,0.2105
+PACU,SURGICAL SAME DAY ADMISSION,3,1,0.3333,0.0526
+PACU,URGENT,1,0,0,0.0175
+Surgery/Trauma,EW EMER.,2,2,1,0.3333
+Surgery/Trauma,URGENT,2,0,0,0.3333
+Surgery/Trauma,DIRECT EMER.,1,0,0,0.1667
+Surgery/Trauma,OBSERVATION ADMIT,1,0,0,0.1667
+Surgery/Vascular/Intermediate,URGENT,38,11,0.2895,0.3725
+Surgery/Vascular/Intermediate,EW EMER.,34,12,0.3529,0.3333
+Surgery/Vascular/Intermediate,OBSERVATION ADMIT,26,5,0.1923,0.2549
+Surgery/Vascular/Intermediate,DIRECT EMER.,4,1,0.25,0.0392
+Surgical Intensive Care Unit (SICU),EW EMER.,4192,581,0.1386,0.5621
+Surgical Intensive Care Unit (SICU),SURGICAL SAME DAY ADMISSION,1065,27,0.0254,0.1428
+Surgical Intensive Care Unit (SICU),URGENT,980,147,0.15,0.1314
+Surgical Intensive Care Unit (SICU),OBSERVATION ADMIT,690,67,0.0971,0.0925
+Surgical Intensive Care Unit (SICU),DIRECT EMER.,304,18,0.0592,0.0408
+Surgical Intensive Care Unit (SICU),ELECTIVE,212,6,0.0283,0.0284
+Surgical Intensive Care Unit (SICU),EU OBSERVATION,12,1,0.0833,0.0016
+Surgical Intensive Care Unit (SICU),DIRECT OBSERVATION,3,1,0.3333,0.0004
+Trauma SICU (TSICU),EW EMER.,3717,422,0.1135,0.6046
+Trauma SICU (TSICU),SURGICAL SAME DAY ADMISSION,802,20,0.0249,0.1304
+Trauma SICU (TSICU),OBSERVATION ADMIT,757,83,0.1096,0.1231
+Trauma SICU (TSICU),URGENT,641,87,0.1357,0.1043
+Trauma SICU (TSICU),ELECTIVE,125,6,0.048,0.0203
+Trauma SICU (TSICU),DIRECT EMER.,90,11,0.1222,0.0146
+Trauma SICU (TSICU),EU OBSERVATION,12,2,0.1667,0.002
+Trauma SICU (TSICU),DIRECT OBSERVATION,4,1,0.25,0.0007

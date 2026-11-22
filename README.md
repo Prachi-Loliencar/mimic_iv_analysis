@@ -1,30 +1,25 @@
-# MIMIC-IV ICU Analytics Pipeline
+# MIMIC-IV ICU Analytics Pipeline & Reporting Model
 
 A tested, documented **dbt + BigQuery** analytics-engineering pipeline that transforms ~120M rows of raw MIMIC-IV v3.1 critical care data into an analysis-ready adult ICU cohort mart, designed to support downstream in-hospital mortality prediction and survival analysis, with parallel **Power BI** and **Tableau** cohort outcome dashboards built on top of the mart.
 
-**Jump to:** [Architecture](#architecture) &nbsp;·&nbsp; [Cohort definition](#cohort-definition) &nbsp;·&nbsp; [Outcome design](#outcome-design) &nbsp;·&nbsp; [Data model](#data-model) &nbsp;·&nbsp; [BI dashboards](#bi-dashboards) &nbsp;·&nbsp; [Design decisions](#design-decisions)
+## At a glance
+
+![Power BI ICU cohort dashboard](docs/exploration/dashboard/powerbi/mimic_icu_cohort_dashboard.png)
+
+- **Tested, documented dbt pipeline:** staging → intermediate → mart (9 + 3 + 1 models) on BigQuery, with schema documentation on every model and grain, key, and domain tests.
+- **Star-schema semantic model in Power BI** (fact table, role-playing care-unit dimension, DAX measures), plus a parallel Tableau build of the same dashboard.
+- **Key finding:** the care-unit mortality index tracks unit composition, not just risk. Cardiac's 0.57 comes almost entirely from CVICU (0.26; CCU sits at 1.14), and adjusting for admission type explains only about a third of the gap, so the index should not be read as a ranking of unit performance.
+- **No patient data leaves the credentialed environment.** All work runs inside PhysioNet's credentialed BigQuery tables; this repository contains code and static exports only.
+
+**Jump to:** [Architecture](#architecture) &nbsp;·&nbsp; [BI dashboards](#bi-dashboards) &nbsp;·&nbsp; [Cohort definition](#cohort-definition) &nbsp;·&nbsp; [Outcome design](#outcome-design) &nbsp;·&nbsp; [Data model](#data-model) &nbsp;·&nbsp; [Design decisions](#design-decisions) &nbsp;·&nbsp; [Testing & documentation](#testing--documentation) &nbsp;·&nbsp; [About the data](#about-the-data)
 
 ---
 
 ## Overview
 
-This project builds the SQL/dbt layer that stands between raw electronic health record data and downstream analytics. It follows the standard analytics-engineering pattern, staging → intermediate → marts, with disciplined testing, documentation, cost management, and design-decision documentation appropriate for a production dbt project on BigQuery. The mart is then surfaced through two BI dashboards, one in Power BI and one in Tableau, built to the same specification (see [BI dashboards](#bi-dashboards)).
+This project builds an analysis-ready adult ICU cohort mart (`mart_icu_cohort`, one row per stay) and a descriptive BI layer over it: two cohort-outcomes dashboards built to the same specification, one in Power BI and one in Tableau (see [BI dashboards](#bi-dashboards)). Together they form the SQL/dbt layer that stands between raw electronic health record data and downstream analytics. The pipeline follows the standard analytics-engineering pattern, staging → intermediate → marts, with disciplined testing, documentation, cost management, and design-decision documentation appropriate for a production dbt project on BigQuery.
 
-**Clinical framing.** Given features observed in the first 24 hours of a patient's first ICU stay, predict the probability of in-hospital mortality. This is a *prognostic* framing that matches how established ICU severity scores (APACHE II/III, SAPS II/III, SOFA, OASIS) are constructed and how such a model would be deployed clinically - scored once at hour 24 to inform risk stratification and resource allocation.
-
-**Portfolio scope.** This repository covers the SQL/dbt cohort-construction layer plus a descriptive BI layer over the resulting mart. Remaining analytical modules, including predictive and survival modeling, MLOps deployment, and an agentic text-to-SQL interface, are designed against this mart and scoped under [Future Work](#future-work).
-
----
-
-## About the data
-
-**MIMIC-IV v3.1** is a de-identified critical-care electronic health record dataset released by the MIT Laboratory for Computational Physiology. It covers patients admitted to intensive care units and the emergency department at Beth Israel Deaconess Medical Center (Boston, MA) between 2008 and 2019. The dataset contains approximately **364,000 patients, 546,000 hospitalizations, and 94,000 ICU stays**, with structured data spanning demographics, vital signs, laboratory results, medications, procedures, and clinical notes. MIMIC-IV is one of the most widely-used datasets for clinical prediction research, benchmarking of ICU severity scores, and methodological work in healthcare machine learning.
-
-<!-- MIMIC-IV is one of the most widely-used datasets for clinical prediction research, benchmarking of ICU severity scores, and methodological work in healthcare machine learning. Its scale, longitudinal coverage, and structured relational schema make it well suited for constructing analysis ready cohorts that support downstream statistical modeling. -->
-
-**Access and governance.** MIMIC-IV is credentialed data, not open data. Use requires (1) a PhysioNet account with completed CITI "Data or Specimens Only Research" training, and (2) signed acceptance of the PhysioNet Credentialed Health Data Use Agreement. Once approved, the dataset is available as flat files or as read-only BigQuery tables ( as used in this project) in the `physionet-data` GCP project. All work occurs inside the credentialed environment and no patient-level data leaves it.
-
-**De-identification and its analytical consequences.** Patient identifiers are replaced with random ciphers, and each patient's timestamps are shifted by a random per-subject offset measured in days. Intra-patient time intervals are preserved exactly (a 4-hour gap between two measurements remains a 4-hour gap), but across the population `charttime` values are scattered over ~100+ years of shifted calendar time. This property directly motivates the monthly-partitioning decision documented under [Design Decisions](#design-decisions).
+**Portfolio scope.** This repository covers the SQL/dbt cohort-construction layer plus a descriptive BI layer over the resulting mart. Planned extensions are listed under [Future Work](#future-work).
 
 ---
 
@@ -49,6 +44,69 @@ flowchart LR
 
 
 ![dbt Lineage Graph](docs/lineage_graph.jpg)
+
+---
+
+## BI dashboards
+
+The mart is surfaced through two descriptive dashboards built to the same specification, one in **Power BI** and one in **Tableau**, both connected directly to `mart_icu_cohort` in BigQuery. Building the same brief twice was deliberate: it isolates where the two tools genuinely differ (semantic modeling, measure definition, role-playing dimensions) from where the difference is only cosmetic.
+
+Both answer the same question: **within the adult first-ICU-stay cohort, how does in-hospital mortality vary by care unit, gender, and length of stay, and how much of that variation is case mix rather than risk?**
+
+All dashboard snapshots and exports live in **[`docs/exploration/dashboard/`](docs/exploration/dashboard/)**: both dashboards as PNG snapshots, shown inline below, plus PDF exports of the Power BI report canvas and its underlying model view. GitHub cannot embed PDFs, so those two are linked from the [Power BI](#power-bi) subsection rather than displayed.
+
+**An architecture note:** the dbt mart is intentionally a wide, denormalized feature matrix (one row per stay), which is the right shape for ML and single-table analysis. The **star schema lives in the BI semantic layer, not the warehouse**, as a fact table plus small conformed dimensions derived from the mart. This keeps the warehouse mart ML-ready while giving the BI tools the navigational model they expect.
+
+### Shared panel design
+
+| Panel | Purpose |
+|---|---|
+| Total Stays / Mortality Rate KPIs | Cohort size (54,548 stays) and headline in-hospital mortality (10.78%) |
+| Median Length of Stay by Died in Hospital | Survived 2.3 days vs. died 3.9 days, motivating the length-of-stay caveat below |
+| Stays by Care Unit (and Gender) | Cohort composition, exposing the volume behind every rate |
+| Mortality Rate by Care Unit and Gender | Rate decomposition across the two main strata |
+| Mortality Rate by Length of Stay Band | Monotonic rise from 6.69% (1-2 days) to 22.79% (14+ days) |
+| Mortality Rate Index by Care Unit | Each unit's rate as a ratio to the cohort mean, with 1.00 as reference |
+
+### Interpretation guardrails
+
+Descriptive ICU dashboards invite causal misreading, so both builds carry the caveats on the canvas rather than in a separate document:
+
+- **The index is unadjusted, so it reflects case mix as well as care quality.** Cardiac's 0.57 comes almost entirely from CVICU (0.26), while CCU sits at 1.14. Planned admissions (elective and same-day surgical) make up 30% of Cardiac stays, but adjusting for admission type explains only about a third of the gap, and CVICU's rate stays well below the cohort mean within every admission type. Neuro at 0.17 also stays low within every admission type; its lower acuity is a hypothesis this mart cannot test. The index is not a ranking of unit performance (breakdown: [`careunit_case_mix.sql`](docs/exploration/careunit_case_mix.sql)).
+- **Length of stay is an outcome of severity, not a cause of death.** A longer stay does not mean higher risk, and length of stay is a competing-risks quantity, because patients who die early exit the denominator.
+- **The cohort is floored at LOS ≥ 24h,** so every rate on the dashboard is conditional on surviving to hour 24 (see [Cohort definition](#cohort-definition)).
+- **Low-volume care units (N < 900) are excluded from breakdowns but retained in cohort totals,** so panel subtotals will not sum to the headline stay count by design.
+
+### Power BI
+
+![Power BI ICU cohort dashboard](docs/exploration/dashboard/powerbi/mimic_icu_cohort_dashboard.png)
+
+The report canvas carries the six shared panels above, with admission type added as a slicer; also available as a [PDF export](docs/exploration/dashboard/powerbi/mimic_icu_cohort_dashboard.pdf).
+
+Underneath it, the data is rebuilt as a small star schema rather than a single flat table, which is where the two tools diverge most ([model view (PDF)](docs/exploration/dashboard/powerbi/Model_View_For_mimic_dashboard.pdf)):
+
+| Table | Role |
+|---|---|
+| `fact_icu_stay` | Cohort grain, one row per stay, sourced from `mart_icu_cohort` |
+| `dim_care_unit` | Care-unit dimension |
+| `dim_admission_type` | Admission-type dimension |
+
+Two modeling decisions worth noting:
+
+- **`dim_care_unit` is a role-playing dimension.** It resolves both `first_careunit` and `last_careunit`. The relationship on `first_careunit` is active, the one on `last_careunit` is inactive, and measures that need discharge-unit context (for example *Mortality Rate for Last Care Unit*) activate it per measure via `USERELATIONSHIP`. This avoids duplicating the dimension or forcing an ambiguous model.
+- **Raw source columns are retained and presentation names are layered on top** of only the surfaced fields, so the model stays traceable back to mart column names while the report surface reads in clinical language.
+
+Rates, indices, and banding are DAX measures (`Mortality Rate`, `Mortality Rate Index`, `Median Length of Stay`, `Length of Stay Band`) rather than precomputed mart columns, keeping the mart at feature grain and the aggregation logic in the semantic layer.
+
+### Tableau
+
+![Tableau ICU cohort dashboard](docs/exploration/dashboard/tableau/mimic_icu_cohort_dashboard.png)
+
+The same panels as a single-sheet dashboard over a live BigQuery connection. Where Power BI resolves grouping and banding through a semantic model, Tableau builds care-unit grouping and length-of-stay banding as calculated fields and bins directly on the mart's raw `first_careunit` and `los`, keeping transformation logic visible in the workbook rather than pushed into extra dbt models.
+
+
+> Both dashboards are published here as static exports only. Live workbooks are not distributed, since rendering them requires credentialed access to the underlying MIMIC-IV BigQuery tables.
+
 ---
 
 ## Cohort definition
@@ -73,6 +131,8 @@ MIMIC-IV shifts each patient's timestamps independently for de-identification wh
 
 ## Outcome design
 
+**Clinical framing.** Given features observed in the first 24 hours of a patient's first ICU stay, predict the probability of in-hospital mortality. This is a *prognostic* framing that matches how established ICU severity scores (APACHE II/III, SAPS II/III, SOFA, OASIS) are constructed and how such a model would be deployed clinically, where it would be scored once at hour 24 to inform risk stratification and resource allocation.
+
 The mart carries **multiple outcome columns** rather than a single label:
 
 | Column | Definition | Source |
@@ -87,7 +147,7 @@ The mart carries **multiple outcome columns** rather than a single label:
 - Hospice discharges, a clinical decision that death is imminent, count as false positives under standard evaluation.
 - Features that predict `died_in_hospital` mix biological severity with likelihood of *being in a hospital at time of death*. This is a healthcare-system artifact that may not generalize across institutions.
 
-Reporting the same metrics on `died_within_30d` and `died_within_1y` makes the *gap* itself interpretable; a small gap suggests the model captures generalizable near-term mortality risk a large gap suggests it partly captures location-of-death signal.
+Reporting the same metrics on `died_within_30d` and `died_within_1y` makes the *gap* itself interpretable; a small gap suggests the model captures generalizable near-term mortality risk; a large gap suggests it partly captures location-of-death signal.
 
 Right-censoring encoding (`event_time`, `event_observed`) for Cox / Kaplan-Meier survival analysis is scoped under [Future Work](#future-work). Note that a null `dod` (date of death) means "unobserved," not "survived," and treating it otherwise would conflate true survival with unlinked out-of-hospital death. 
 
@@ -128,73 +188,12 @@ Both feature aggregate tables use half-open time intervals `[intime, intime + 24
 The mart **LEFT joins** from the cohort spine onto the vitals and labs feature tables as inner joins would silently shrink the cohort in an outcome-dependent way. [Agniel, Kohane & Weber (BMJ, 2018)](https://www.bmj.com/content/361/bmj.k1479) established that lab-ordering patterns themselves carry prognostic signal, so absence of a measurement is meaningful (missing not at random). Cohort rows are preserved; missingness is preserved as `null`.
 
 ---
-## BI dashboards
-
-The mart is surfaced through two descriptive dashboards built to the same specification, one in **Power BI** and one in **Tableau**, both connected directly to `mart_icu_cohort` in BigQuery. Building the same brief twice was deliberate: it isolates where the two tools genuinely differ (semantic modeling, measure definition, role-playing dimensions) from where the difference is only cosmetic.
-
-Both answer the same question: **within the adult first-ICU-stay cohort, how does in-hospital mortality vary by care unit, gender, and length of stay, and how much of that variation is case mix rather than risk?**
-
-All dashboard snapshots and exports live in **[`docs/exploration/dashboard/`](docs/exploration/dashboard/)**: both dashboards as PNG snapshots, shown inline below, plus PDF exports of the Power BI report canvas and its underlying model view. GitHub cannot embed PDFs, so those two are linked from the [Power BI](#power-bi) subsection rather than displayed.
-
-**An architecture note:** the dbt mart is intentionally a wide, denormalized feature matrix (one row per stay), which is the right shape for ML and single-table analysis. The **star schema lives in the BI semantic layer, not the warehouse**, as a fact table plus small conformed dimensions derived from the mart. This keeps the warehouse mart ML-ready while giving the BI tools the navigational model they expect.
-
-### Shared panel design
-
-| Panel | Purpose |
-|---|---|
-| Total Stays / Mortality Rate KPIs | Cohort size (54,548 stays) and headline in-hospital mortality (10.78%) |
-| Median Length of Stay by Died in Hospital | Survived 2.3 days vs. died 3.9 days, motivating the length-of-stay caveat below |
-| Stays by Care Unit (and Gender) | Cohort composition, exposing the volume behind every rate |
-| Mortality Rate by Care Unit and Gender | Rate decomposition across the two main strata |
-| Mortality Rate by Length of Stay Band | Monotonic rise from 6.69% (1-2 days) to 22.79% (14+ days) |
-| Mortality Rate Index by Care Unit | Each unit's rate as a ratio to the cohort mean, with 1.00 as reference |
-
-### Interpretation guardrails
-
-Descriptive ICU dashboards invite causal misreading, so both builds carry the caveats on the canvas rather than in a separate document:
-
-- **The index reflects case mix, not care quality.** Cardiac sits at 0.57 largely because it carries elective post-surgical patients; Neuro at 0.17 reflects a low-acuity referral pattern. Neither is a ranking of unit performance.
-- **Length of stay is an outcome of severity, not a cause of death.** A longer stay does not mean higher risk, and length of stay is a competing-risks quantity, patients who die early exit the denominator.
-- **The cohort is floored at LOS ≥ 24h,** so every rate on the dashboard is conditional on surviving to hour 24 (see [Cohort definition](#cohort-definition)).
-- **Low-volume care units (N < 900) are excluded from breakdowns but retained in cohort totals,** so panel subtotals will not sum to the headline stay count by design.
-
-### Power BI
-
-![Power BI ICU cohort dashboard](docs/exploration/dashboard/powerbi/mimic_icu_cohort_dashboard.png)
-
-The report canvas carries the six shared panels above, with admission type added as a slicer; also available as a [PDF export](docs/exploration/dashboard/powerbi/mimic_icu_cohort_dashboard.pdf).
-
-Underneath it, the data is rebuilt as a small star schema rather than a single flat table, which is where the two tools diverge most ([model view (PDF)](docs/exploration/dashboard/powerbi/Model_View_For_mimic_dashboard.pdf)):
-
-| Table | Role |
-|---|---|
-| `fact_icu_stay` | Cohort grain, one row per stay, sourced from `mart_icu_cohort` |
-| `dim_care_unit` | Care-unit dimension |
-| `dim_admission_type` | Admission-type dimension |
-
-Two modeling decisions worth noting:
-
-- **`dim_care_unit` is a role-playing dimension.** It resolves both `first_careunit` and `last_careunit`. The relationship on `first_careunit` is active, the one on `last_careunit` is inactive, and measures that need discharge-unit context (for example *Mortality Rate for Last Care Unit*) activate it per measure via `USERELATIONSHIP`. This avoids duplicating the dimension or forcing an ambiguous model.
-- **Raw source columns are retained and presentation names are layered on top** of only the surfaced fields, so the model stays traceable back to mart column names while the report surface reads in clinical language.
-
-Rates, indices, and banding are DAX measures (`Mortality Rate`, `Mortality Rate Index`, `Median Length of Stay`, `Length of Stay Band`) rather than precomputed mart columns, keeping the mart at feature grain and the aggregation logic in the semantic layer.
-
-### Tableau
-
-![Tableau ICU cohort dashboard](docs/exploration/dashboard/tableau/mimic_icu_cohort_dashboard.png)
-
-The same panels as a single-sheet dashboard over a live BigQuery connection. Where Power BI resolves grouping and banding through a semantic model, Tableau builds care-unit grouping and length-of-stay banding as calculated fields and bins directly on the mart's raw `first_careunit` and `los`, keeping transformation logic visible in the workbook rather than pushed into extra dbt models.
-
-
-> Both dashboards are published here as static exports only. Live workbooks are not distributed, since rendering them requires credentialed access to the underlying MIMIC-IV BigQuery tables.
-
----
 
 ## Design decisions
 
 ### Partitioning: monthly, not daily
 
-Initial daily partitioning on `stg_hosp__labevents` failed with `Too many partitions produced by query, allowed 4000, query produces at least 4001 partitions`. Root cause: MIMIC-IV date-shifts each patient's timestamps independently for de-identification, internally consistent per patient, but across the population `charttime` values scatter over ~100+ years of shifted calendar time. Daily partitioning across that span produces ~36,500 partitions, well over BigQuery's 4,000-partition ceiling. Monthly granularity (~1,200 partitions) stays under the ceiling while still pruning effectively for stay-scoped 24-hour window queries, since an ICU stay rarely spans more than a month.
+Initial daily partitioning on `stg_hosp__labevents` failed with `Too many partitions produced by query, allowed 4000, query produces at least 4001 partitions`. Root cause: MIMIC-IV date-shifts each patient's timestamps independently for de-identification, internally consistent per patient, but across the population `charttime` values scatter over ~100+ years of shifted calendar time (see [About the data](#about-the-data)). Daily partitioning across that span produces ~36,500 partitions, well over BigQuery's 4,000-partition ceiling. Monthly granularity (~1,200 partitions) stays under the ceiling while still pruning effectively for stay-scoped 24-hour window queries, since an ICU stay rarely spans more than a month.
 
 ### Materialization: table, not view, for high-volume event sources
 
@@ -235,7 +234,7 @@ Where MIT-LCP publishes a per-analyte filter, it is adopted verbatim. Where MIT-
 | `base_excess` | `valuenum between -50 and 50` | `bg.sql` applies no filter; observed min -414 |
 | `wbc` | `valuenum > 0 and valuenum <= 1000` | `complete_blood_count.sql` applies only a global `> 0`; observed max 12,500 |
 
-All 16 vital-sign filters are adopted verbatim from `vitalsign.sql` with zero deviations. `temp_f` and `temp_c` are bounded on their own native scale, `70 < valuenum < 120`°F and `10 < valuenum < 50`°C respectively, *before* being merged into a single Celsius concept in `int_vitals_first_24h`. These two bounds are independently calibrated in MIT-GCP, not the same cutoff expressed in different units (70–120°F converts to 21.1–48.9°C, narrower than the native 10–50°C bound). Full per-itemid filter tables, source citations, and rationale for every concept in both panels are in [`docs/exploration/concept_reference.md`](docs/exploration/concept_reference.md).
+All 16 vital-sign filters are adopted verbatim from `vitalsign.sql` with zero deviations. `temp_f` and `temp_c` are bounded on their own native scale, `70 < valuenum < 120`°F and `10 < valuenum < 50`°C respectively, *before* being merged into a single Celsius concept in `int_vitals_first_24h`. These two bounds are independently calibrated in MIT-LCP, not the same cutoff expressed in different units (70–120°F converts to 21.1–48.9°C, narrower than the native 10–50°C bound). Full per-itemid filter tables, source citations, and rationale for every concept in both panels are in [`docs/exploration/concept_reference.md`](docs/exploration/concept_reference.md).
 
 ### Coalescing in intermediate, not mart
 
@@ -260,7 +259,17 @@ Every model has a `schema.yml` entry with a description and column-level documen
 - **Aggregate outputs:** `dbt_utils.expression_is_true` for structural constraints (e.g. `n_measurements >= 1`)
 - **Composite grain:** `dbt_utils.unique_combination_of_columns` on `(stay_id, concept)` for the aggregate intermediate models
 
-Passthrough columns (used only within CTEs, not in final outputs) are documented but untested - a single-ownership discipline keeps test surface aligned with model contract.
+Passthrough columns (used only within CTEs, not in final outputs) are documented but untested. A single-ownership discipline keeps test surface aligned with model contract.
+
+---
+
+## About the data
+
+**MIMIC-IV v3.1** is a de-identified critical-care electronic health record dataset released by the MIT Laboratory for Computational Physiology. It covers patients admitted to intensive care units and the emergency department at Beth Israel Deaconess Medical Center (Boston, MA) between 2008 and 2019. The dataset contains approximately **364,000 patients, 546,000 hospitalizations, and 94,000 ICU stays**, with structured data spanning demographics, vital signs, laboratory results, medications, procedures, and clinical notes. MIMIC-IV is one of the most widely-used datasets for clinical prediction research, benchmarking of ICU severity scores, and methodological work in healthcare machine learning.
+
+**Access and governance.** MIMIC-IV is credentialed data, not open data. Use requires (1) a PhysioNet account with completed CITI "Data or Specimens Only Research" training, and (2) signed acceptance of the PhysioNet Credentialed Health Data Use Agreement. Once approved, the dataset is available as flat files or as read-only BigQuery tables (as used in this project) in the `physionet-data` GCP project. All work occurs inside the credentialed environment and no patient-level data leaves it.
+
+**De-identification and its analytical consequences.** Patient identifiers are replaced with random ciphers, and each patient's timestamps are shifted by a random per-subject offset measured in days. Intra-patient time intervals are preserved exactly (a 4-hour gap between two measurements remains a 4-hour gap), but across the population `charttime` values are scattered over ~100+ years of shifted calendar time. This property directly motivates the monthly-partitioning decision documented under [Partitioning: monthly, not daily](#partitioning-monthly-not-daily).
 
 ---
 
@@ -316,7 +325,7 @@ This repository currently covers the SQL/dbt cohort-construction layer and a des
 
 ## About
 
-**Prachi Loliencar**, PhD-level data scientist with 4+ years of postdoctoral healthcare ML experience across clinical and genomics domains.
+**Prachi Loliencar**, PhD-level data analyst building Power BI and T-SQL reporting for the Government of Alberta; previously a clinical data science postdoc (University of Alberta) and a predictive analytics postdoc (National Research Council Canada).
 
 - LinkedIn: [linkedin.com/in/prachiloliencar](https://linkedin.com/in/prachiloliencar)
 - GitHub: [github.com/Prachi-Loliencar](https://github.com/Prachi-Loliencar)
