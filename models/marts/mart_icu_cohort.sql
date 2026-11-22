@@ -9,11 +9,21 @@
 ] %}
 
 {% set vital_concepts = [
-    'heart_rate', 'art_bp_sys', 'art_bp_dia', 'art_bp_mean', 'nibp_sys', 
+    'heart_rate', 'art_bp_sys', 'art_bp_dia', 'art_bp_mean', 'nibp_sys',
     'nibp_dia', 'nibp_mean', 'resp_rate', 'spo2', 'temp_c', 'gcs_eye',
     'gcs_verbal', 'gcs_motor'
 ] %}
 
+-- Cross-warehouse notes:
+--   * date(x) -> cast(x as date): BigQuery's one-argument date() is not portable.
+--   * Age: extract(year from intime) - anchor_year equals BigQuery's
+--     date_diff(date(intime), date(anchor_year, 1, 1), year), which counts
+--     calendar-year boundaries, so results are unchanged. It also avoids
+--     building a date from parts (BigQuery date(y, m, d) vs Snowflake
+--     date_from_parts) and any datediff argument-order question.
+--   * Mortality windows use dbt.datediff(first, second, 'day'), which always
+--     returns second - first. Native Snowflake datediff(day, start, end) puts
+--     the start date first, the reverse of BigQuery's date_diff(end, start, day).
 
 with first_icu_stays as (select * from {{ ref("int_first_icu_stay") }}),
 
@@ -40,8 +50,7 @@ age_computed as (
         p.gender,
         p.dod,
         -- newly computed here
-        date_diff(date(f.intime), date(p.anchor_year, 1, 1), year)
-        + p.anchor_age
+        extract(year from f.intime) - p.anchor_year + p.anchor_age
             as age_at_intime
     from first_icu_stays as f
     inner join patients as p on f.subject_id = p.subject_id
@@ -78,7 +87,7 @@ cohort_spine as (
         -- MIMIC-IV date de-identification artifacts (dod shifted inconsistently
         -- with admission dates) and would otherwise poison the horizon-based
         -- mortality flags. See _mart_models.yml dod >= intime integrity test.
-        and (ac.dod is null or ac.dod >= date(ac.intime))
+        and (ac.dod is null or ac.dod >= cast(ac.intime as date))
 ),
 
 outcomes_cte as (
@@ -110,12 +119,12 @@ outcomes_cte as (
         -- the flags correct if that filter ever changes. A within-horizon
         -- death is only asserted when dod >= intime.
         case
-            when dod >= date(intime)
-                then date_diff(dod, date(intime), day) <= 30
+            when dod >= cast(intime as date)
+                then {{ dbt.datediff('cast(intime as date)', 'dod', 'day') }} <= 30
         end as died_within_30d,
         case
-            when dod >= date(intime)
-                then date_diff(dod, date(intime), day) <= 365
+            when dod >= cast(intime as date)
+                then {{ dbt.datediff('cast(intime as date)', 'dod', 'day') }} <= 365
         end as died_within_1y
     from cohort_spine
 ),

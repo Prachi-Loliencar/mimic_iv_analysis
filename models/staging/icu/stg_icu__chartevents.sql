@@ -1,6 +1,9 @@
 {{ config(
     materialized='table',
-    partition_by={'field': 'charttime', 'data_type': 'timestamp', 'granularity': 'month'},
+    partition_by=(
+        {'field': 'charttime', 'data_type': 'timestamp', 'granularity': 'month'}
+        if target.type == 'bigquery' else none
+    ),
     cluster_by=['stay_id', 'itemid']
 ) }}
 

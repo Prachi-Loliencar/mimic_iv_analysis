@@ -6,6 +6,8 @@
 -- errors slip through (e.g. 950 -> 510 °C).
 -- See docs/concept_reference.md for the full filter table, coalescing
 -- rationale, and MIT-LCP citations.
+-- Cross-warehouse: the 24h window uses add_hours() and quartiles use
+-- approx_quartile() (macros/), so this model builds on BigQuery and Snowflake.
 
 with chartevents as (select * from {{ ref('stg_icu__chartevents') }}),
 
@@ -20,20 +22,20 @@ merged as (
         i.intime
     from icu_stay as i inner join chartevents as c on i.stay_id = c.stay_id
     where
-        c.charttime < timestamp_add(i.intime, interval 24 hour)
+        c.charttime < {{ add_hours('i.intime', 24) }}
         and c.charttime >= i.intime
         and c.valuenum is not null
 ),
 
 
-named_concepts as ( 
+named_concepts as (
     select
     stay_id,
     valuenum,
-    case 
+    case
         when itemid in (220052, 225312) then 'art_bp_mean'
         when itemid in (220210, 224690) then 'resp_rate'
-        when itemid = 223761 then 'temp_f' 
+        when itemid = 223761 then 'temp_f'
         when itemid = 223762 then 'temp_c'
         when itemid = 220045 then 'heart_rate'
         when itemid = 220050 then 'art_bp_sys'
@@ -50,10 +52,10 @@ named_concepts as (
 ),
 
 bounded_vals as (
-    select 
+    select
     stay_id,
     concept,
-    case 
+    case
         when concept = 'heart_rate' and valuenum > 0 and valuenum < 300 then valuenum
         when concept = 'art_bp_sys' and valuenum > 0 and valuenum < 400 then valuenum
         when concept = 'art_bp_dia' and valuenum > 0 and valuenum < 300 then valuenum
@@ -71,14 +73,14 @@ bounded_vals as (
 ),
 
 combine_temps as (
-    select 
+    select
     stay_id,
-    case 
+    case
         when concept = 'temp_f' then (valuenum-32)*5/9 else valuenum
     end as valuenum,
     case
         when concept = 'temp_f' then 'temp_c' else concept
-    end as concept 
+    end as concept
     from bounded_vals
 ),
 
@@ -89,7 +91,11 @@ aggregates as (
         count(valuenum) as n_measurements,
         avg(valuenum) as valuenum_mean,
         stddev_samp(valuenum) as valuenum_std,
-        approx_quantiles(valuenum, 4) as quantile_array
+        min(valuenum) as valuenum_min,
+        {{ approx_quartile('valuenum', 1) }} as valuenum_q1,
+        {{ approx_quartile('valuenum', 2) }} as valuenum_median,
+        {{ approx_quartile('valuenum', 3) }} as valuenum_q3,
+        max(valuenum) as valuenum_max
     from combine_temps
     where valuenum is not null
     group by stay_id, concept
@@ -101,9 +107,9 @@ select
     n_measurements,
     valuenum_mean,
     valuenum_std,
-    quantile_array[safe_offset(0)] as valuenum_min,
-    quantile_array[safe_offset(1)] as valuenum_q1,
-    quantile_array[safe_offset(2)] as valuenum_median,
-    quantile_array[safe_offset(3)] as valuenum_q3,
-    quantile_array[safe_offset(4)] as valuenum_max
+    valuenum_min,
+    valuenum_q1,
+    valuenum_median,
+    valuenum_q3,
+    valuenum_max
 from aggregates

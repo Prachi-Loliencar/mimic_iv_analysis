@@ -1,7 +1,7 @@
 sources:
   - name: mimic_icu
-    database: physionet-data
-    schema: mimiciv_3_1_icu
+    database: "{{ 'physionet-data' if target.type == 'bigquery' else 'MIMIC_DEMO' }}"
+    schema: "{{ 'mimiciv_3_1_icu' if target.type == 'bigquery' else 'ICU' }}"
  
     quoting:
       database: false
