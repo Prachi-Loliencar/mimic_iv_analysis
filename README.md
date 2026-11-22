@@ -1,6 +1,6 @@
 # MIMIC-IV ICU Analytics Pipeline & Reporting Model
 
-A tested, documented **dbt + BigQuery** analytics-engineering pipeline that transforms ~120M rows of raw MIMIC-IV v3.1 critical care data into an analysis-ready adult ICU cohort mart, designed to support downstream in-hospital mortality prediction and survival analysis, with parallel **Power BI** and **Tableau** cohort outcome dashboards built on top of the mart.
+A tested, documented **dbt + BigQuery** analytics-engineering pipeline that transforms ~120M rows of raw MIMIC-IV v3.1 critical care data into an analysis-ready adult ICU cohort mart, designed to support downstream in-hospital mortality prediction and survival analysis, with parallel **Power BI** and **Tableau** cohort outcome dashboards built on top of the mart. The same models are ported to **Snowflake** through adapter-dispatched macros (validated against the MIMIC-IV demo subset for data-governance reasons; see [About the data](#about-the-data)).
 
 ## At a glance
 
@@ -9,7 +9,7 @@ A tested, documented **dbt + BigQuery** analytics-engineering pipeline that tran
 - **Tested, documented dbt pipeline:** staging → intermediate → mart (9 + 3 + 1 models) on BigQuery, with schema documentation on every model and grain, key, and domain tests.
 - **Star-schema semantic model in Power BI** (fact table, role-playing care-unit dimension, DAX measures), plus a parallel Tableau build of the same dashboard.
 - **Key finding:** the care-unit mortality index tracks unit composition, not just risk. Cardiac's 0.57 comes almost entirely from CVICU (0.26; CCU sits at 1.14), and adjusting for admission type explains only about a third of the gap, so the index should not be read as a ranking of unit performance.
-- **No patient data leaves the credentialed environment.** All work runs inside PhysioNet's credentialed BigQuery tables; this repository contains code and static exports only.
+- **No patient data leaves the credentialed environment.** All work on the full dataset runs inside PhysioNet's credentialed BigQuery tables (the Snowflake port uses the open demo subset); this repository contains code and static exports only.
 
 **Jump to:** [Architecture](#architecture) &nbsp;·&nbsp; [BI dashboards](#bi-dashboards) &nbsp;·&nbsp; [Cohort definition](#cohort-definition) &nbsp;·&nbsp; [Outcome design](#outcome-design) &nbsp;·&nbsp; [Data model](#data-model) &nbsp;·&nbsp; [Design decisions](#design-decisions) &nbsp;·&nbsp; [Testing & documentation](#testing--documentation) &nbsp;·&nbsp; [About the data](#about-the-data)
 
@@ -267,7 +267,7 @@ Passthrough columns (used only within CTEs, not in final outputs) are documented
 
 **MIMIC-IV v3.1** is a de-identified critical-care electronic health record dataset released by the MIT Laboratory for Computational Physiology. It covers patients admitted to intensive care units and the emergency department at Beth Israel Deaconess Medical Center (Boston, MA) between 2008 and 2019. The dataset contains approximately **364,000 patients, 546,000 hospitalizations, and 94,000 ICU stays**, with structured data spanning demographics, vital signs, laboratory results, medications, procedures, and clinical notes. MIMIC-IV is one of the most widely-used datasets for clinical prediction research, benchmarking of ICU severity scores, and methodological work in healthcare machine learning.
 
-**Access and governance.** MIMIC-IV is credentialed data, not open data. Use requires (1) a PhysioNet account with completed CITI "Data or Specimens Only Research" training, and (2) signed acceptance of the PhysioNet Credentialed Health Data Use Agreement. Once approved, the dataset is available as flat files or as read-only BigQuery tables (as used in this project) in the `physionet-data` GCP project. All work occurs inside the credentialed environment and no patient-level data leaves it.
+**Access and governance.** MIMIC-IV is credentialed data, not open data. Use requires (1) a PhysioNet account with completed CITI "Data or Specimens Only Research" training, and (2) signed acceptance of the PhysioNet Credentialed Health Data Use Agreement. Once approved, the dataset is available as flat files or as read-only BigQuery tables (as used in this project) in the `physionet-data` GCP project. All work occurs inside the credentialed environment and no patient-level data leaves it. The Snowflake port runs against the openly available MIMIC-IV demo subset (`MIMIC_DEMO`) rather than the full dataset, so credentialed data never leaves the PhysioNet-managed BigQuery environment. The models are identical across targets; only the source database and schema switch on `target.type`, so the same code applies unchanged to the full dataset. All figures reported in this README come from the full dataset on BigQuery.
 
 **De-identification and its analytical consequences.** Patient identifiers are replaced with random ciphers, and each patient's timestamps are shifted by a random per-subject offset measured in days. Intra-patient time intervals are preserved exactly (a 4-hour gap between two measurements remains a 4-hour gap), but across the population `charttime` values are scattered over ~100+ years of shifted calendar time. This property directly motivates the monthly-partitioning decision documented under [Partitioning: monthly, not daily](#partitioning-monthly-not-daily).
 
@@ -276,7 +276,7 @@ Passthrough columns (used only within CTEs, not in final outputs) are documented
 ## Tech stack
 
 - **dbt-fusion 2.0.0-preview** with `dbt-labs/dbt_utils`
-- **BigQuery** on GCP
+- **BigQuery** on GCP, plus a **Snowflake** target via adapter-dispatched macros (`add_hours`, `approx_quartile`) and `dbt.datediff`, with sources switched on `target.type`
 - **MIMIC-IV v3.1** hosted on the PhysioNet-managed `physionet-data` project (read-only)
 - **SQLFluff** for BigQuery/dbt-templated SQL linting
 - **Power BI** (DAX, star-schema semantic model) and **Tableau** for the BI layer over the mart
@@ -339,4 +339,4 @@ This repository currently covers the SQL/dbt cohort-construction layer and a des
 
 ---
 
-*MIMIC-IV data is governed by the [PhysioNet Credentialed Health Data Use Agreement](https://physionet.org/content/mimiciv/view-dua/3.1/). This repository contains code only. No patient data is stored, committed, or transmitted outside the credentialed BigQuery environment.*
+*MIMIC-IV data is governed by the [PhysioNet Credentialed Health Data Use Agreement](https://physionet.org/content/mimiciv/view-dua/3.1/). This repository contains code only. No credentialed patient data is stored, committed, or transmitted outside the credentialed BigQuery environment.*
