@@ -4,6 +4,8 @@
 -- complete_blood_count.sql, bg.sql, cardiac_marker.sql). Three deviations
 -- flagged in-line: pO2 > 0, base_excess in [-50, 50], wbc <= 1000.
 -- See docs/concept_reference.md for the full filter table and rationale.
+-- Cross-warehouse: the 24h window uses add_hours() and quartiles use
+-- approx_quartile() (macros/), so this model builds on BigQuery and Snowflake.
 
 with labevents as (select * from {{ ref('stg_hosp__labevents') }}),
 
@@ -20,7 +22,7 @@ merged as (
     from icustays as i inner join labevents as l
         on i.hadm_id = l.hadm_id
     where
-        l.charttime < timestamp_add(i.intime, interval 24 hour)
+        l.charttime < {{ add_hours('i.intime', 24) }}
         and l.charttime >= i.intime
         and l.valuenum is not null
 ),
@@ -62,15 +64,15 @@ items_named as (
     from merged),
 
 bounded_vals as (
-    select 
+    select
         stay_id,
         concept,
-        case 
-             when concept = 'albumin' and valuenum > 0 and valuenum <= 10 then valuenum 
+        case
+             when concept = 'albumin' and valuenum > 0 and valuenum <= 10 then valuenum
              when concept = 'alp' and valuenum > 0 then valuenum
-             when concept = 'alt' and valuenum > 0 then valuenum 
+             when concept = 'alt' and valuenum > 0 then valuenum
              when concept = 'ast' and valuenum > 0 then valuenum
-             when concept = 'base_excess' and valuenum >= -50 and valuenum <= 50 then valuenum --base_excess in [-50, 50] deviates from MIT-LCP,
+             when concept = 'base_excess' and valuenum >= -50 and valuenum <= 50 then valuenum -- base_excess in [-50, 50] deviates from MIT-LCP
              when concept = 'bicarbonate' and valuenum > 0 and valuenum <= 10000 then valuenum
              when concept = 'bilirubin' and valuenum > 0 then valuenum
              when concept = 'calcium' and valuenum > 0 and valuenum <= 10000 then valuenum
@@ -92,8 +94,6 @@ bounded_vals as (
              end as valuenum
              from items_named),
 
-
-
 aggregates as (
     select
         stay_id,
@@ -101,7 +101,11 @@ aggregates as (
         count(valuenum) as n_measurements,
         avg(valuenum) as valuenum_mean,
         stddev_samp(valuenum) as valuenum_std,
-        approx_quantiles(valuenum, 4) as quantile_array
+        min(valuenum) as valuenum_min,
+        {{ approx_quartile('valuenum', 1) }} as valuenum_q1,
+        {{ approx_quartile('valuenum', 2) }} as valuenum_median,
+        {{ approx_quartile('valuenum', 3) }} as valuenum_q3,
+        max(valuenum) as valuenum_max
     from bounded_vals
     where valuenum is not null
     group by stay_id, concept
@@ -113,10 +117,9 @@ select
     n_measurements,
     valuenum_mean,
     valuenum_std,
-    quantile_array[safe_offset(0)] as valuenum_min,
-    quantile_array[safe_offset(1)] as valuenum_q1,
-    quantile_array[safe_offset(2)] as valuenum_median,
-    quantile_array[safe_offset(3)] as valuenum_q3,
-    quantile_array[safe_offset(4)] as valuenum_max
+    valuenum_min,
+    valuenum_q1,
+    valuenum_median,
+    valuenum_q3,
+    valuenum_max
 from aggregates
-    

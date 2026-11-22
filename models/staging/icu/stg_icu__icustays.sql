@@ -11,7 +11,7 @@ renamed as (
         last_careunit,
         cast(intime as timestamp) as intime,
         cast(outtime as timestamp) as outtime,
-        cast(los as float64) as los
+        cast(los as {{ dbt.type_float() }}) as los
     from source
 )
 
